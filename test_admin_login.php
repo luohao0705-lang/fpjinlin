@@ -98,18 +98,16 @@ try {
     
     $classes = [
         'AnalysisOrder' => [
-            'fpjinlin/includes/AnalysisOrder.php'
+            'includes/classes/AnalysisOrder.php'
         ],
         'ExchangeCode' => [
-            'includes/classes/ExchangeCode.php',
-            'fpjinlin/includes/ExchangeCode.php'
+            'includes/classes/ExchangeCode.php'
         ],
         'OperationLog' => [
             'includes/classes/OperationLog.php'
         ],
         'User' => [
-            'includes/classes/User.php',
-            'fpjinlin/includes/User.php'
+            'includes/classes/User.php'
         ]
     ];
     

@@ -65,33 +65,13 @@ define('MAX_PAGE_SIZE', 100);
  * 自动加载函数
  */
 function autoload($className) {
-    // 优先级目录：主系统类优先于fpjinlin子系统
+    // 主系统自动加载：完全隔离，不加载fpjinlin子系统
     $directories = [
         BASE_PATH . '/includes/classes/',
         BASE_PATH . '/includes/models/',
-        BASE_PATH . '/includes/services/',
-        BASE_PATH . '/fpjinlin/includes/'
+        BASE_PATH . '/includes/services/'
     ];
     
-    // 特殊处理：某些类有冲突时优先使用主系统版本
-    $conflictClasses = ['ExchangeCode', 'User'];
-    if (in_array($className, $conflictClasses)) {
-        // 对于冲突类，只在主系统目录中查找
-        $priorityDirectories = [
-            BASE_PATH . '/includes/classes/',
-            BASE_PATH . '/includes/models/',
-            BASE_PATH . '/includes/services/'
-        ];
-        foreach ($priorityDirectories as $directory) {
-            $file = $directory . $className . '.php';
-            if (file_exists($file)) {
-                require_once $file;
-                return;
-            }
-        }
-    }
-    
-    // 常规查找
     foreach ($directories as $directory) {
         $file = $directory . $className . '.php';
         if (file_exists($file)) {
@@ -99,6 +79,9 @@ function autoload($className) {
             return;
         }
     }
+    
+    // 如果在主系统中找不到类，记录日志但不报错
+    error_log("主系统自动加载器：找不到类 {$className}");
 }
 
 spl_autoload_register('autoload');

@@ -263,4 +263,73 @@ class User {
             'totalPages' => ceil($total / $pageSize)
         ];
     }
+    
+    /**
+     * 检查用户精灵币余额
+     */
+    public function checkCoinsBalance($userId, $amount) {
+        $user = $this->getUserById($userId);
+        return $user && $user['coins'] >= $amount;
+    }
+    
+    /**
+     * 扣除用户精灵币
+     */
+    public function deductCoins($userId, $amount, $description = '', $type = '', $relatedId = null) {
+        $this->db->beginTransaction();
+        
+        try {
+            // 检查余额
+            if (!$this->checkCoinsBalance($userId, $amount)) {
+                throw new Exception('精灵币余额不足');
+            }
+            
+            // 扣除精灵币
+            $this->db->query(
+                "UPDATE users SET coins = coins - ? WHERE id = ?",
+                [$amount, $userId]
+            );
+            
+            // 记录消费记录
+            $this->db->insert(
+                "INSERT INTO coin_transactions (user_id, type, amount, description, related_type, related_id, created_at) VALUES (?, 'deduct', ?, ?, ?, ?, NOW())",
+                [$userId, $amount, $description, $type, $relatedId]
+            );
+            
+            $this->db->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+    
+    /**
+     * 增加用户精灵币
+     */
+    public function addCoins($userId, $amount, $description = '', $type = '', $relatedId = null) {
+        $this->db->beginTransaction();
+        
+        try {
+            // 增加精灵币
+            $this->db->query(
+                "UPDATE users SET coins = coins + ? WHERE id = ?",
+                [$amount, $userId]
+            );
+            
+            // 记录充值记录
+            $this->db->insert(
+                "INSERT INTO coin_transactions (user_id, type, amount, description, related_type, related_id, created_at) VALUES (?, 'add', ?, ?, ?, ?, NOW())",
+                [$userId, $amount, $description, $type, $relatedId]
+            );
+            
+            $this->db->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
 }
