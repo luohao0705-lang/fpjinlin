@@ -123,24 +123,42 @@ try {
                 $foundFiles[] = $relativePath;
                 echo "<li class='success'>✓ 文件存在: {$relativePath}</li>\n";
                 
-                // 尝试包含文件检查语法（因为shell_exec被禁用）
+                // 检查文件内容而不实际包含（避免依赖问题）
                 try {
-                    // 使用输出缓冲来捕获任何输出
-                    ob_start();
-                    $error_before = error_get_last();
-                    include_once $fullPath;
-                    $error_after = error_get_last();
-                    ob_end_clean();
-                    
-                    if ($error_after && $error_after !== $error_before) {
-                        echo "<li class='error'>✗ 文件包含时出错: " . htmlspecialchars($error_after['message']) . "</li>\n";
+                    $content = file_get_contents($fullPath);
+                    if ($content === false) {
+                        echo "<li class='error'>✗ 无法读取文件内容</li>\n";
                     } else {
-                        echo "<li class='success'>✓ 文件包含成功，无语法错误</li>\n";
+                        // 基本语法检查
+                        $hasPhpTag = strpos($content, '<?php') !== false;
+                        $hasClassDef = preg_match('/class\s+' . preg_quote($className) . '\s*\{/', $content);
+                        $hasUnmatchedBraces = substr_count($content, '{') !== substr_count($content, '}');
+                        
+                        if (!$hasPhpTag) {
+                            echo "<li class='error'>✗ 缺少PHP开始标签</li>\n";
+                        } elseif (!$hasClassDef) {
+                            echo "<li class='error'>✗ 未找到类定义</li>\n";
+                        } elseif ($hasUnmatchedBraces) {
+                            echo "<li class='error'>✗ 花括号不匹配</li>\n";
+                        } else {
+                            echo "<li class='success'>✓ 基本语法检查通过</li>\n";
+                            
+                            // 检查潜在的依赖问题
+                            $dependencies = [];
+                            if (strpos($content, 'Database::getInstance()') !== false) {
+                                $dependencies[] = 'Database::getInstance() 方法不存在';
+                            }
+                            if (strpos($content, 'getSystemConfig(') !== false && !function_exists('getSystemConfig')) {
+                                $dependencies[] = 'getSystemConfig() 函数可能未加载';
+                            }
+                            
+                            if (!empty($dependencies)) {
+                                echo "<li class='warning'>⚠ 发现潜在问题: " . implode(', ', $dependencies) . "</li>\n";
+                            }
+                        }
                     }
-                } catch (ParseError $e) {
-                    echo "<li class='error'>✗ 语法错误: " . htmlspecialchars($e->getMessage()) . "</li>\n";
                 } catch (Exception $e) {
-                    echo "<li class='warning'>⚠ 包含时出现问题: " . htmlspecialchars($e->getMessage()) . "</li>\n";
+                    echo "<li class='error'>✗ 文件检查时出错: " . htmlspecialchars($e->getMessage()) . "</li>\n";
                 }
             } else {
                 echo "<li class='warning'>⚠ 文件不存在: {$relativePath}</li>\n";

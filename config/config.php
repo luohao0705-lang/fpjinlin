@@ -176,3 +176,51 @@ function safeFileName($filename) {
     $ext = isset($info['extension']) ? '.' . $info['extension'] : '';
     return $name . '_' . time() . $ext;
 }
+
+/**
+ * 获取系统配置（兼容fpjinlin系统）
+ */
+if (!function_exists('getSystemConfig')) {
+    function getSystemConfig($key, $default = null) {
+        static $configs = null;
+        if ($configs === null) {
+            try {
+                $db = new Database();
+                // 尝试从system_configs表读取
+                $result = $db->fetchAll("SELECT config_key, config_value, config_type FROM system_configs");
+                $configs = [];
+                foreach ($result as $row) {
+                    $value = $row['config_value'];
+                    // 根据类型转换值
+                    switch ($row['config_type']) {
+                        case 'int':
+                            $value = (int)$value;
+                            break;
+                        case 'boolean':
+                            $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                            break;
+                        case 'float':
+                            $value = (float)$value;
+                            break;
+                        case 'json':
+                            $value = json_decode($value, true);
+                            break;
+                        default:
+                            // 字符串类型保持原样
+                            break;
+                    }
+                    $configs[$row['config_key']] = $value;
+                }
+            } catch (Exception $e) {
+                // 如果表不存在或查询失败，使用默认配置
+                $configs = [
+                    'analysis_cost_coins' => 100,
+                    'max_competitor_scripts' => 5,
+                    'analysis_timeout' => 300,
+                    'default_coins_reward' => 50
+                ];
+            }
+        }
+        return isset($configs[$key]) ? $configs[$key] : $default;
+    }
+}

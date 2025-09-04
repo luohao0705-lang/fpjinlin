@@ -29,6 +29,9 @@ class Database {
     private $charset = 'utf8mb4';
     private $connection = null;
     
+    // 单例模式支持
+    private static $instance = null;
+    
     public function __construct() {
         // 从环境变量读取配置
         $this->host = EnvLoader::get('DB_HOST', '127.0.0.1');
@@ -121,5 +124,15 @@ class Database {
      */
     public function rollback() {
         return $this->getConnection()->rollback();
+    }
+    
+    /**
+     * 获取单例实例
+     */
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
 }
