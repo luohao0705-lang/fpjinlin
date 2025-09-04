@@ -34,13 +34,9 @@ class EnvLoader {
                     $value = $matches[1];
                 }
                 
-                // 设置环境变量
+                // 设置环境变量（只使用$_ENV，避免putenv被禁用的问题）
                 if (!array_key_exists($key, $_ENV)) {
                     $_ENV[$key] = $value;
-                }
-                
-                if (!getenv($key)) {
-                    putenv("$key=$value");
                 }
             }
         }
@@ -52,7 +48,7 @@ class EnvLoader {
      * 获取环境变量值
      */
     public static function get($key, $default = null) {
-        return $_ENV[$key] ?? getenv($key) ?: $default;
+        return $_ENV[$key] ?? $default;
     }
 }
 

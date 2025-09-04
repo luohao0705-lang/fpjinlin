@@ -4,8 +4,14 @@
  * 复盘精灵系统
  */
 
-// 加载环境变量
-require_once __DIR__ . '/env.php';
+// 加载环境变量（自动检测服务器环境）
+if (function_exists('putenv')) {
+    require_once __DIR__ . '/env.php';
+} else {
+    require_once __DIR__ . '/env_simple.php';
+    // 使用简化版本的别名
+    class_alias('EnvLoaderSimple', 'EnvLoader');
+}
 
 // 错误报告设置
 error_reporting(E_ALL);

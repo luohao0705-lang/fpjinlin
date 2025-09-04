@@ -11,11 +11,11 @@ class SessionManager {
      */
     public static function start() {
         if (session_status() === PHP_SESSION_NONE) {
-            // 设置会话安全选项
-            ini_set('session.cookie_httponly', 1);
-            ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) ? 1 : 0);
-            ini_set('session.use_strict_mode', 1);
-            ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
+            // 设置会话安全选项（使用@避免在受限环境下的警告）
+            @ini_set('session.cookie_httponly', 1);
+            @ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) ? 1 : 0);
+            @ini_set('session.use_strict_mode', 1);
+            @ini_set('session.gc_maxlifetime', defined('SESSION_LIFETIME') ? SESSION_LIFETIME : 7200);
             
             session_start();
             
