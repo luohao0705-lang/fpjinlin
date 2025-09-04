@@ -52,9 +52,9 @@ class AnalysisOrder {
             $this->db->commit();
             
             return [
-                'order_id' => $orderId,
-                'order_no' => $orderNo,
-                'cost_coins' => $costCoins
+                'orderId' => $orderId,
+                'orderNo' => $orderNo,
+                'costCoins' => $costCoins
             ];
             
         } catch (Exception $e) {

@@ -277,7 +277,7 @@ class User {
      */
     public function checkCoinsBalance($userId, $amount) {
         $user = $this->getUserById($userId);
-        return $user && $user['coins'] >= $amount;
+        return $user && $user['jingling_coins'] >= $amount;
     }
     
     /**
@@ -294,14 +294,18 @@ class User {
             
             // 扣除精灵币
             $this->db->query(
-                "UPDATE users SET coins = coins - ? WHERE id = ?",
+                "UPDATE users SET jingling_coins = jingling_coins - ? WHERE id = ?",
                 [$amount, $userId]
             );
             
+            // 获取交易后余额
+            $userAfter = $this->getUserById($userId);
+            $balanceAfter = $userAfter['jingling_coins'];
+            
             // 记录消费记录
             $this->db->insert(
-                "INSERT INTO coin_transactions (user_id, type, amount, description, related_type, related_id, created_at) VALUES (?, 'deduct', ?, ?, ?, ?, NOW())",
-                [$userId, $amount, $description, $type, $relatedId]
+                "INSERT INTO coin_transactions (user_id, type, amount, balance_after, related_order_id, description) VALUES (?, 'consume', ?, ?, ?, ?)",
+                [$userId, -$amount, $balanceAfter, $relatedId, $description]
             );
             
             $this->db->commit();
