@@ -60,7 +60,7 @@ $logs = $db->fetchAll(
     "SELECT ol.*, a.username, a.real_name,
             DATE_FORMAT(ol.created_at, '%Y-%m-%d %H:%i:%s') as created_time
      FROM operation_logs ol 
-     LEFT JOIN admins a ON ol.admin_id = a.id 
+     LEFT JOIN admins a ON ol.operator_type = 'admin' AND ol.operator_id = a.id 
      WHERE {$where} 
      ORDER BY ol.created_at DESC 
      LIMIT ? OFFSET ?",
@@ -69,7 +69,7 @@ $logs = $db->fetchAll(
 
 // 获取总数
 $total = $db->fetchOne(
-    "SELECT COUNT(*) as count FROM operation_logs ol LEFT JOIN admins a ON ol.admin_id = a.id WHERE {$where}",
+    "SELECT COUNT(*) as count FROM operation_logs ol LEFT JOIN admins a ON ol.operator_type = 'admin' AND ol.operator_id = a.id WHERE {$where}",
     $params
 )['count'];
 
@@ -314,8 +314,8 @@ $actionStats = $db->fetchAll(
                                             <code class="small"><?php echo htmlspecialchars($log['ip_address']); ?></code>
                                         </td>
                                         <td>
-                                            <?php if ($log['related_id']): ?>
-                                            <span class="badge bg-light text-dark">#<?php echo $log['related_id']; ?></span>
+                                            <?php if ($log['target_id']): ?>
+                                            <span class="badge bg-light text-dark">#<?php echo $log['target_id']; ?></span>
                                             <?php else: ?>
                                             <span class="text-muted">-</span>
                                             <?php endif; ?>
