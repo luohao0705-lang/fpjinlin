@@ -29,19 +29,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $orderId = intval($_POST['order_id'] ?? 0);
     
     if ($action == 'delete_order' && $orderId > 0) {
-        $analysisOrder = new AnalysisOrder();
-        $order = $analysisOrder->getOrderById($orderId);
-        
-        if ($order) {
-            if ($analysisOrder->deleteOrder($orderId)) {
-                $message = '订单已删除';
-                
-                // 记录操作日志
-                $operationLog = new OperationLog();
-                $operationLog->log($_SESSION['admin_id'], 'order_delete', "删除订单 #{$orderId}", $orderId);
-            } else {
-                $error = '删除失败，请重试';
+        try {
+            if (!class_exists('AnalysisOrder')) {
+                throw new Exception('AnalysisOrder类不存在');
             }
+            
+            $analysisOrder = new AnalysisOrder();
+            $order = $analysisOrder->getOrderById($orderId);
+            
+            if ($order) {
+                if ($analysisOrder->deleteOrder($orderId)) {
+                    $message = '订单已删除';
+                    
+                    // 记录操作日志
+                    try {
+                        if (class_exists('OperationLog')) {
+                            $operationLog = new OperationLog();
+                            $operationLog->log($_SESSION['admin_id'], 'order_delete', "删除订单 #{$orderId}", $orderId);
+                        }
+                    } catch (Exception $e) {
+                        error_log("操作日志记录失败: " . $e->getMessage());
+                    }
+                } else {
+                    $error = '删除失败，请重试';
+                }
+            } else {
+                $error = '订单不存在';
+            }
+        } catch (Exception $e) {
+            error_log("订单删除操作失败: " . $e->getMessage());
+            $error = '系统错误，请稍后重试';
         }
     }
 }

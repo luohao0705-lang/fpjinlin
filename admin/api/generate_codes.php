@@ -45,13 +45,23 @@ try {
     }
     
     // 生成兑换码
+    if (!class_exists('ExchangeCode')) {
+        throw new Exception('ExchangeCode类不存在');
+    }
+    
     $exchangeCode = new ExchangeCode();
     $result = $exchangeCode->generateCodes($count, $value, $expiresAt, $adminId);
     
     // 记录操作日志
-    $operationLog = new OperationLog();
-    $operationLog->log('admin', $adminId, 'generate_codes', 'exchange_code', null, 
-                      "生成兑换码：批次{$result['batchNo']}，数量{$count}，面值{$value}");
+    try {
+        if (class_exists('OperationLog')) {
+            $operationLog = new OperationLog();
+            $operationLog->log('admin', $adminId, 'generate_codes', 'exchange_code', null, 
+                              "生成兑换码：批次{$result['batchNo']}，数量{$count}，面值{$value}");
+        }
+    } catch (Exception $e) {
+        error_log("操作日志记录失败: " . $e->getMessage());
+    }
     
     jsonResponse([
         'success' => true,

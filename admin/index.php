@@ -22,11 +22,56 @@ if (!$admin || $admin['status'] != 1) {
 }
 
 // 获取统计数据
-$analysisOrder = new AnalysisOrder();
-$exchangeCode = new ExchangeCode();
+$orderStats = [];
+$codeStats = [];
 
-$orderStats = $analysisOrder->getStatistics();
-$codeStats = $exchangeCode->getStatistics();
+try {
+    // 尝试加载并实例化类
+    if (class_exists('AnalysisOrder')) {
+        $analysisOrder = new AnalysisOrder();
+        $orderStats = $analysisOrder->getStatistics();
+    } else {
+        // 如果类不存在，提供默认统计数据
+        $orderStats = [
+            'total' => 0,
+            'pending' => 0,
+            'processing' => 0,
+            'completed' => 0,
+            'failed' => 0
+        ];
+    }
+} catch (Exception $e) {
+    error_log("AnalysisOrder类加载失败: " . $e->getMessage());
+    $orderStats = [
+        'total' => 0,
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'failed' => 0
+    ];
+}
+
+try {
+    if (class_exists('ExchangeCode')) {
+        $exchangeCode = new ExchangeCode();
+        $codeStats = $exchangeCode->getStatistics();
+    } else {
+        $codeStats = [
+            'total' => 0,
+            'used' => 0,
+            'unused' => 0,
+            'expired' => 0
+        ];
+    }
+} catch (Exception $e) {
+    error_log("ExchangeCode类加载失败: " . $e->getMessage());
+    $codeStats = [
+        'total' => 0,
+        'used' => 0,
+        'unused' => 0,
+        'expired' => 0
+    ];
+}
 
 // 获取用户统计
 $userStats = $db->fetchOne("SELECT COUNT(*) as total_users FROM users WHERE status = 1")['total_users'];

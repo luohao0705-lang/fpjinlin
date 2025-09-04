@@ -34,6 +34,11 @@ try {
     }
     
     // 获取兑换码列表
+    if (!class_exists('ExchangeCode')) {
+        jsonResponse(['success' => false, 'message' => 'ExchangeCode类不存在'], 500);
+        exit;
+    }
+    
     $exchangeCode = new ExchangeCode();
     
     if (!empty($filters['code'])) {
