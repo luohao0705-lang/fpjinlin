@@ -20,25 +20,34 @@ class SmsService {
      * 加载配置
      */
     private function loadConfig() {
-        $configs = $this->db->fetchAll(
-            "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?, ?, ?)",
-            ['aliyun_sms_access_key', 'aliyun_sms_access_secret', 'sms_sign_name', 'sms_template_code']
-        );
+        // 优先从环境变量读取
+        $this->accessKey = EnvLoader::get('ALIYUN_SMS_ACCESS_KEY');
+        $this->accessSecret = EnvLoader::get('ALIYUN_SMS_ACCESS_SECRET');
+        $this->signName = EnvLoader::get('SMS_SIGN_NAME');
+        $this->templateCode = EnvLoader::get('SMS_TEMPLATE_CODE');
         
-        foreach ($configs as $config) {
-            switch ($config['config_key']) {
-                case 'aliyun_sms_access_key':
-                    $this->accessKey = $config['config_value'];
-                    break;
-                case 'aliyun_sms_access_secret':
-                    $this->accessSecret = $config['config_value'];
-                    break;
-                case 'sms_sign_name':
-                    $this->signName = $config['config_value'];
-                    break;
-                case 'sms_template_code':
-                    $this->templateCode = $config['config_value'];
-                    break;
+        // 如果环境变量没有配置，则从数据库读取
+        if (empty($this->accessKey) || empty($this->accessSecret) || empty($this->signName) || empty($this->templateCode)) {
+            $configs = $this->db->fetchAll(
+                "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?, ?, ?)",
+                ['aliyun_sms_access_key', 'aliyun_sms_access_secret', 'sms_sign_name', 'sms_template_code']
+            );
+            
+            foreach ($configs as $config) {
+                switch ($config['config_key']) {
+                    case 'aliyun_sms_access_key':
+                        if (empty($this->accessKey)) $this->accessKey = $config['config_value'];
+                        break;
+                    case 'aliyun_sms_access_secret':
+                        if (empty($this->accessSecret)) $this->accessSecret = $config['config_value'];
+                        break;
+                    case 'sms_sign_name':
+                        if (empty($this->signName)) $this->signName = $config['config_value'];
+                        break;
+                    case 'sms_template_code':
+                        if (empty($this->templateCode)) $this->templateCode = $config['config_value'];
+                        break;
+                }
             }
         }
     }

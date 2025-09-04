@@ -9,7 +9,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
     // 检查用户登录
-    if (!isset($_SESSION['user_id'])) {
+    if (!SessionManager::isLoggedIn('user')) {
         throw new Exception('请先登录');
     }
     
@@ -20,7 +20,7 @@ try {
     
     // 获取POST数据
     $code = strtoupper(trim($_POST['code'] ?? ''));
-    $userId = $_SESSION['user_id'];
+    $userId = SessionManager::getUserId('user');
     
     // 验证兑换码格式
     if (empty($code) || strlen($code) !== 12) {

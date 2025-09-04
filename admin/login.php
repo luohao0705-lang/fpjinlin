@@ -27,10 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             
             if ($admin && password_verify($password, $admin['password_hash'])) {
-                // 登录成功
-                $_SESSION['admin_id'] = $admin['id'];
-                $_SESSION['admin_username'] = $admin['username'];
-                $_SESSION['admin_role'] = $admin['role'];
+                // 安全登录
+                SessionManager::login($admin['id'], 'admin', [
+                    'admin_username' => $admin['username'],
+                    'admin_role' => $admin['role']
+                ]);
                 
                 // 更新最后登录时间
                 $db->query(

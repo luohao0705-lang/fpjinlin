@@ -6,9 +6,11 @@
 
 class User {
     private $db;
+    private $smsService;
     
-    public function __construct() {
+    public function __construct($smsService = null) {
         $this->db = new Database();
+        $this->smsService = $smsService ?: new SmsService();
     }
     
     /**
@@ -16,7 +18,7 @@ class User {
      */
     public function register($phone, $password, $smsCode) {
         // 验证短信验证码
-        if (!$this->verifySmsCode($phone, $smsCode, 'register')) {
+        if (!$this->smsService->verifySmsCode($phone, $smsCode, 'register')) {
             throw new Exception('验证码错误或已过期');
         }
         
@@ -33,7 +35,7 @@ class User {
         );
         
         // 标记验证码已使用
-        $this->markSmsCodeUsed($phone, $smsCode, 'register');
+        $this->smsService->markSmsCodeUsed($phone, $smsCode, 'register');
         
         return $userId;
     }
@@ -67,7 +69,7 @@ class User {
      */
     public function smsLogin($phone, $smsCode) {
         // 验证短信验证码
-        if (!$this->verifySmsCode($phone, $smsCode, 'login')) {
+        if (!$this->smsService->verifySmsCode($phone, $smsCode, 'login')) {
             throw new Exception('验证码错误或已过期');
         }
         
@@ -85,7 +87,7 @@ class User {
         $this->updateLastLogin($user['id']);
         
         // 标记验证码已使用
-        $this->markSmsCodeUsed($phone, $smsCode, 'login');
+        $this->smsService->markSmsCodeUsed($phone, $smsCode, 'login');
         
         return $user;
     }
@@ -214,27 +216,6 @@ class User {
         );
     }
     
-    /**
-     * 验证短信验证码
-     */
-    private function verifySmsCode($phone, $code, $type) {
-        $smsCode = $this->db->fetchOne(
-            "SELECT * FROM sms_codes WHERE phone = ? AND code = ? AND type = ? AND is_used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
-            [$phone, $code, $type]
-        );
-        
-        return $smsCode !== false;
-    }
-    
-    /**
-     * 标记验证码已使用
-     */
-    private function markSmsCodeUsed($phone, $code, $type) {
-        $this->db->query(
-            "UPDATE sms_codes SET is_used = 1 WHERE phone = ? AND code = ? AND type = ?",
-            [$phone, $code, $type]
-        );
-    }
     
     /**
      * 更新最后登录信息

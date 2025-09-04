@@ -38,10 +38,11 @@ try {
     // 获取用户信息
     $userInfo = $user->getUserById($userId);
     
-    // 设置会话
-    $_SESSION['user_id'] = $userId;
-    $_SESSION['phone'] = $phone;
-    $_SESSION['login_time'] = time();
+    // 安全登录
+    SessionManager::login($userId, 'user', [
+        'phone' => $phone,
+        'nickname' => $userInfo['nickname']
+    ]);
     
     // 记录操作日志
     $operationLog = new OperationLog();
@@ -59,8 +60,5 @@ try {
     ]);
     
 } catch (Exception $e) {
-    jsonResponse([
-        'success' => false,
-        'message' => $e->getMessage()
-    ], 400);
+    ErrorHandler::apiError($e->getMessage());
 }

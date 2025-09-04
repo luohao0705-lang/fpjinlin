@@ -6,12 +6,12 @@ require_once 'config/config.php';
 require_once 'config/database.php';
 
 // 检查用户登录状态
-$isLoggedIn = isset($_SESSION['user_id']);
+$isLoggedIn = SessionManager::isLoggedIn('user');
 $user = null;
 
 if ($isLoggedIn) {
     $userObj = new User();
-    $user = $userObj->getUserById($_SESSION['user_id']);
+    $user = $userObj->getUserById(SessionManager::getUserId('user'));
 }
 ?>
 <!DOCTYPE html>

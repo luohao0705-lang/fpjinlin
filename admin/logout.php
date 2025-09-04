@@ -5,14 +5,14 @@
 require_once '../config/config.php';
 
 // 记录退出日志
-if (isset($_SESSION['admin_id'])) {
+if (SessionManager::isLoggedIn('admin')) {
     require_once '../config/database.php';
     $operationLog = new OperationLog();
-    $operationLog->log('admin', $_SESSION['admin_id'], 'logout', 'admin', $_SESSION['admin_id'], '管理员退出登录');
+    $operationLog->log('admin', SessionManager::getUserId('admin'), 'logout', 'admin', SessionManager::getUserId('admin'), '管理员退出登录');
 }
 
-// 清除会话
-session_destroy();
+// 安全退出
+SessionManager::logout();
 
 // 跳转到登录页
 header('Location: login.php');

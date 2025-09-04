@@ -18,16 +18,23 @@ class DeepSeekService {
      * 加载配置
      */
     private function loadConfig() {
-        $configs = $this->db->fetchAll(
-            "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?)",
-            ['deepseek_api_key', 'deepseek_api_url']
-        );
+        // 优先从环境变量读取
+        $this->apiKey = EnvLoader::get('DEEPSEEK_API_KEY');
+        $this->apiUrl = EnvLoader::get('DEEPSEEK_API_URL', 'https://api.deepseek.com/v1/chat/completions');
         
-        foreach ($configs as $config) {
-            if ($config['config_key'] === 'deepseek_api_key') {
-                $this->apiKey = $config['config_value'];
-            } elseif ($config['config_key'] === 'deepseek_api_url') {
-                $this->apiUrl = $config['config_value'];
+        // 如果环境变量没有配置，则从数据库读取
+        if (empty($this->apiKey) || empty($this->apiUrl)) {
+            $configs = $this->db->fetchAll(
+                "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?)",
+                ['deepseek_api_key', 'deepseek_api_url']
+            );
+            
+            foreach ($configs as $config) {
+                if ($config['config_key'] === 'deepseek_api_key' && empty($this->apiKey)) {
+                    $this->apiKey = $config['config_value'];
+                } elseif ($config['config_key'] === 'deepseek_api_url' && empty($this->apiUrl)) {
+                    $this->apiUrl = $config['config_value'];
+                }
             }
         }
     }

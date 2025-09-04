@@ -4,20 +4,25 @@
  * 复盘精灵系统
  */
 
+// 加载环境变量
+require_once __DIR__ . '/env.php';
+
 class Database {
-    private $host = '127.0.0.1';
-    private $database = 'fupan_jingling';
-    private $username = 'webapp';
-    private $password = 'password123';
+    private $host;
+    private $database;
+    private $username;
+    private $password;
+    private $port;
     private $charset = 'utf8mb4';
     private $connection = null;
     
     public function __construct() {
-        // 从环境变量读取配置（生产环境）
-        $this->host = $_ENV['DB_HOST'] ?? $this->host;
-        $this->database = $_ENV['DB_NAME'] ?? $this->database;
-        $this->username = $_ENV['DB_USER'] ?? $this->username;
-        $this->password = $_ENV['DB_PASS'] ?? $this->password;
+        // 从环境变量读取配置
+        $this->host = EnvLoader::get('DB_HOST', '127.0.0.1');
+        $this->database = EnvLoader::get('DB_NAME', 'fupan_jingling');
+        $this->username = EnvLoader::get('DB_USER', 'webapp');
+        $this->password = EnvLoader::get('DB_PASS', 'password123');
+        $this->port = EnvLoader::get('DB_PORT', '3306');
     }
     
     /**
@@ -27,7 +32,7 @@ class Database {
         if ($this->connection === null) {
             try {
                 // 使用TCP连接而不是socket连接
-                $dsn = "mysql:host={$this->host};port=3306;dbname={$this->database};charset={$this->charset}";
+                $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->database};charset={$this->charset}";
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

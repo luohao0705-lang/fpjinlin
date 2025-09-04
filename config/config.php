@@ -4,9 +4,13 @@
  * 复盘精灵系统
  */
 
+// 加载环境变量
+require_once __DIR__ . '/env.php';
+
 // 错误报告设置
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // 生产环境设为0
+$debug = EnvLoader::get('APP_DEBUG', 'false') === 'true';
+ini_set('display_errors', $debug ? 1 : 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/error.log');
 
@@ -14,14 +18,14 @@ ini_set('error_log', __DIR__ . '/../logs/error.log');
 date_default_timezone_set('Asia/Shanghai');
 
 // 系统常量
-define('APP_NAME', '复盘精灵');
-define('APP_VERSION', '1.0.0');
+define('APP_NAME', EnvLoader::get('APP_NAME', '复盘精灵'));
+define('APP_VERSION', EnvLoader::get('APP_VERSION', '1.0.0'));
 define('BASE_PATH', dirname(__DIR__));
-define('UPLOAD_PATH', BASE_PATH . '/assets/uploads');
+define('UPLOAD_PATH', BASE_PATH . '/' . EnvLoader::get('UPLOAD_PATH', 'assets/uploads'));
 define('LOG_PATH', BASE_PATH . '/logs');
 
 // 文件上传配置
-define('MAX_UPLOAD_SIZE', 10 * 1024 * 1024); // 10MB
+define('MAX_UPLOAD_SIZE', (int)EnvLoader::get('MAX_UPLOAD_SIZE', 10 * 1024 * 1024)); // 默认10MB
 define('ALLOWED_IMAGE_TYPES', ['jpg', 'jpeg', 'png', 'gif']);
 define('ALLOWED_SCRIPT_TYPES', ['txt']);
 
@@ -36,9 +40,9 @@ define('SMS_CODE_EXPIRE', 300); // 5分钟
 define('DEEPSEEK_API_TIMEOUT', 60); // API超时时间(秒)
 
 // 安全配置
-define('PASSWORD_MIN_LENGTH', 6);
-define('SESSION_LIFETIME', 7200); // 2小时
-define('LOGIN_MAX_ATTEMPTS', 5); // 最大登录尝试次数
+define('PASSWORD_MIN_LENGTH', (int)EnvLoader::get('PASSWORD_MIN_LENGTH', 6));
+define('SESSION_LIFETIME', (int)EnvLoader::get('SESSION_LIFETIME', 7200)); // 2小时
+define('LOGIN_MAX_ATTEMPTS', (int)EnvLoader::get('LOGIN_MAX_ATTEMPTS', 5)); // 最大登录尝试次数
 
 // 分页配置
 define('DEFAULT_PAGE_SIZE', 20);
@@ -67,6 +71,11 @@ function autoload($className) {
 spl_autoload_register('autoload');
 
 /**
+ * 初始化错误处理器
+ */
+ErrorHandler::init();
+
+/**
  * 创建必要的目录
  */
 function createDirectories() {
@@ -89,11 +98,9 @@ function createDirectories() {
 createDirectories();
 
 /**
- * 启动会话
+ * 启动安全会话
  */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+SessionManager::start();
 
 /**
  * 通用响应函数
