@@ -34,9 +34,11 @@ class EnvLoader {
                     $value = $matches[1];
                 }
                 
-                // 设置环境变量（只使用$_ENV，避免putenv被禁用的问题）
+                // 设置环境变量（只使用$_ENV，完全避免putenv函数）
                 if (!array_key_exists($key, $_ENV)) {
                     $_ENV[$key] = $value;
+                    // 同时设置到$_SERVER以确保兼容性
+                    $_SERVER[$key] = $value;
                 }
             }
         }

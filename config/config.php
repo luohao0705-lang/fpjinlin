@@ -5,11 +5,18 @@
  */
 
 // 加载环境变量（自动检测服务器环境）
-if (function_exists('putenv')) {
-    require_once __DIR__ . '/env.php';
-} else {
+// 优先使用简化版本，避免putenv()被禁用的问题
+try {
+    if (function_exists('putenv') && !in_array('putenv', explode(',', ini_get('disable_functions')))) {
+        require_once __DIR__ . '/env.php';
+    } else {
+        require_once __DIR__ . '/env_simple.php';
+        // 使用简化版本的别名
+        class_alias('EnvLoaderSimple', 'EnvLoader');
+    }
+} catch (Exception $e) {
+    // 如果出现任何问题，强制使用简化版本
     require_once __DIR__ . '/env_simple.php';
-    // 使用简化版本的别名
     class_alias('EnvLoaderSimple', 'EnvLoader');
 }
 
