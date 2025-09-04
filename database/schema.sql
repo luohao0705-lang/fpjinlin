@@ -188,5 +188,5 @@ INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `desc
 
 -- 插入默认管理员账户 (用户名: admin, 密码: admin123)
 INSERT INTO `admins` (`username`, `password_hash`, `real_name`, `role`, `permissions`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '超级管理员', 'super_admin', 
+('admin', '$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm', '超级管理员', 'super_admin', 
 '{"user_management": true, "order_management": true, "code_management": true, "system_config": true, "log_view": true}');
