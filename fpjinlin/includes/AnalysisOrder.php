@@ -507,5 +507,38 @@ class AnalysisOrder {
             'totalPages' => ceil($total / $pageSize)
         ];
     }
+    
+    /**
+     * 获取统计数据
+     */
+    public function getStatistics() {
+        $stats = [];
+        
+        // 总订单数
+        $stats['total_orders'] = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM analysis_orders"
+        )['count'];
+        
+        // 今日订单数
+        $stats['today_orders'] = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM analysis_orders WHERE DATE(created_at) = CURDATE()"
+        )['count'];
+        
+        // 待处理订单数
+        $stats['pending_orders'] = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM analysis_orders WHERE status IN ('pending', 'processing')"
+        )['count'];
+        
+        // 完成率
+        $completedOrders = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM analysis_orders WHERE status = 'completed'"
+        )['count'];
+        
+        $stats['completion_rate'] = $stats['total_orders'] > 0 
+            ? round($completedOrders / $stats['total_orders'] * 100, 2) 
+            : 0;
+        
+        return $stats;
+    }
 }
 ?>
