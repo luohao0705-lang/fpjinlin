@@ -51,7 +51,8 @@ function autoload($className) {
     $directories = [
         BASE_PATH . '/includes/classes/',
         BASE_PATH . '/includes/models/',
-        BASE_PATH . '/includes/services/'
+        BASE_PATH . '/includes/services/',
+        BASE_PATH . '/fpjinlin/includes/'
     ];
     
     foreach ($directories as $directory) {
