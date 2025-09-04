@@ -77,6 +77,11 @@ $admin = (new Database())->fetchOne("SELECT * FROM admins WHERE id = ?", [$_SESS
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="statistics.php">
+                                <i class="fas fa-chart-bar me-2"></i>数据统计
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="logs.php">
                                 <i class="fas fa-history me-2"></i>操作日志
                             </a>

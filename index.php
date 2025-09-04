@@ -56,6 +56,9 @@ if ($isLoggedIn) {
                         <a class="nav-link" href="recharge.php">充值中心</a>
                     </li>
                     <?php endif; ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="help.php">帮助中心</a>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
