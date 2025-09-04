@@ -1,0 +1,45 @@
+{
+    "name": "fupanjingling/analysis-platform",
+    "description": "复盘精灵 - 视频号直播复盘分析系统",
+    "version": "1.0.0",
+    "type": "project",
+    "keywords": ["php", "live-streaming", "analysis", "ai", "saas"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "复盘精灵团队",
+            "email": "support@fupanjingling.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-gd": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "FupanJingling\\": "includes/classes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit",
+        "install-deps": [
+            "composer install --no-dev --optimize-autoloader"
+        ]
+    },
+    "extra": {
+        "platform": {
+            "php": "7.4"
+        }
+    }
+}
