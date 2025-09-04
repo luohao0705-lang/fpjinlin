@@ -92,17 +92,70 @@ try {
     }
     echo "</ul>\n";
     
-    // 5. 检查关键类
-    echo "<h2>5. 检查关键类</h2>\n";
-    $classes = ['AnalysisOrder', 'ExchangeCode', 'OperationLog', 'User'];
+    // 5. 检查关键类文件
+    echo "<h2>5. 检查关键类文件</h2>\n";
     echo "<ul>\n";
-    foreach ($classes as $className) {
-        if (class_exists($className)) {
-            echo "<li class='success'>✓ {$className}类加载成功</li>\n";
-        } else {
-            echo "<li class='error'>✗ {$className}类加载失败</li>\n";
+    
+    $classes = [
+        'AnalysisOrder' => [
+            'fpjinlin/includes/AnalysisOrder.php'
+        ],
+        'ExchangeCode' => [
+            'includes/classes/ExchangeCode.php',
+            'fpjinlin/includes/ExchangeCode.php'
+        ],
+        'OperationLog' => [
+            'includes/classes/OperationLog.php'
+        ],
+        'User' => [
+            'includes/classes/User.php',
+            'fpjinlin/includes/User.php'
+        ]
+    ];
+    
+    foreach ($classes as $className => $possiblePaths) {
+        echo "<li><strong>{$className}类:</strong><ul>\n";
+        
+        $foundFiles = [];
+        foreach ($possiblePaths as $relativePath) {
+            $fullPath = BASE_PATH . '/' . $relativePath;
+            if (file_exists($fullPath)) {
+                $foundFiles[] = $relativePath;
+                echo "<li class='success'>✓ 文件存在: {$relativePath}</li>\n";
+                
+                // 尝试包含文件检查语法（因为shell_exec被禁用）
+                try {
+                    // 使用输出缓冲来捕获任何输出
+                    ob_start();
+                    $error_before = error_get_last();
+                    include_once $fullPath;
+                    $error_after = error_get_last();
+                    ob_end_clean();
+                    
+                    if ($error_after && $error_after !== $error_before) {
+                        echo "<li class='error'>✗ 文件包含时出错: " . htmlspecialchars($error_after['message']) . "</li>\n";
+                    } else {
+                        echo "<li class='success'>✓ 文件包含成功，无语法错误</li>\n";
+                    }
+                } catch (ParseError $e) {
+                    echo "<li class='error'>✗ 语法错误: " . htmlspecialchars($e->getMessage()) . "</li>\n";
+                } catch (Exception $e) {
+                    echo "<li class='warning'>⚠ 包含时出现问题: " . htmlspecialchars($e->getMessage()) . "</li>\n";
+                }
+            } else {
+                echo "<li class='warning'>⚠ 文件不存在: {$relativePath}</li>\n";
+            }
         }
+        
+        if (empty($foundFiles)) {
+            echo "<li class='error'>✗ 没有找到 {$className} 类的文件</li>\n";
+        } elseif (count($foundFiles) > 1) {
+            echo "<li class='warning'>⚠ 发现多个 {$className} 类文件，可能导致冲突</li>\n";
+        }
+        
+        echo "</ul></li>\n";
     }
+    
     echo "</ul>\n";
     
     echo "<h2 class='success'>诊断完成</h2>\n";
