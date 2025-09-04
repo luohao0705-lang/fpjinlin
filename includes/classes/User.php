@@ -185,8 +185,12 @@ class User {
     /**
      * 充值精灵币
      */
-    public function rechargeCoins($userId, $amount, $exchangeCodeId, $description) {
-        $this->db->beginTransaction();
+    public function rechargeCoins($userId, $amount, $exchangeCodeId, $description, $useTransaction = true) {
+        $needTransaction = $useTransaction;
+        
+        if ($needTransaction) {
+            $this->db->beginTransaction();
+        }
         
         try {
             // 获取当前余额
@@ -202,10 +206,14 @@ class User {
             // 记录交易
             $this->recordCoinTransaction($userId, 'recharge', $amount, $newBalance, null, $exchangeCodeId, $description);
             
-            $this->db->commit();
+            if ($needTransaction) {
+                $this->db->commit();
+            }
             return true;
         } catch (Exception $e) {
-            $this->db->rollback();
+            if ($needTransaction) {
+                $this->db->rollback();
+            }
             throw $e;
         }
     }

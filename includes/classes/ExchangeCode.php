@@ -126,13 +126,14 @@ class ExchangeCode {
                 [$userId, $exchangeCode['id']]
             );
             
-            // 为用户充值精灵币
+            // 为用户充值精灵币（在当前事务中执行）
             $user = new User();
             $user->rechargeCoins(
                 $userId, 
                 $exchangeCode['value'], 
                 $exchangeCode['id'], 
-                "兑换码充值：{$code}"
+                "兑换码充值：{$code}",
+                false  // 不使用新事务，在当前事务中执行
             );
             
             $this->db->commit();
