@@ -5,10 +5,10 @@
  */
 
 class Database {
-    private $host = 'localhost';
+    private $host = '127.0.0.1';
     private $database = 'fupan_jingling';
-    private $username = 'root';
-    private $password = '';
+    private $username = 'webapp';
+    private $password = 'password123';
     private $charset = 'utf8mb4';
     private $connection = null;
     
@@ -26,12 +26,14 @@ class Database {
     public function getConnection() {
         if ($this->connection === null) {
             try {
-                $dsn = "mysql:host={$this->host};dbname={$this->database};charset={$this->charset}";
+                // 使用TCP连接而不是socket连接
+                $dsn = "mysql:host={$this->host};port=3306;dbname={$this->database};charset={$this->charset}";
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$this->charset}"
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$this->charset}",
+                    PDO::ATTR_TIMEOUT => 30
                 ];
                 
                 $this->connection = new PDO($dsn, $this->username, $this->password, $options);
