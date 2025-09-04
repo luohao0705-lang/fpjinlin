@@ -163,7 +163,14 @@ header('Content-Type: text/html; charset=utf-8');
                 require_once __DIR__ . '/config/config.php';
                 echo '<div class="success">✓ 配置文件加载成功</div>';
                 
+                // 手动加载数据库类
+                if (file_exists(__DIR__ . '/config/database.php')) {
+                    require_once __DIR__ . '/config/database.php';
+                    echo '<div class="success">✓ 数据库类文件加载成功</div>';
+                }
+                
                 if (class_exists('Database')) {
+                    echo '<div class="success">✓ Database类存在</div>';
                     $db = new Database();
                     $conn = $db->getConnection();
                     echo '<div class="success">✓ 数据库连接成功</div>';

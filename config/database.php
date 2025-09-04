@@ -4,8 +4,21 @@
  * 复盘精灵系统
  */
 
-// 加载环境变量
-require_once __DIR__ . '/env.php';
+// 确保环境变量加载器可用
+if (!class_exists('EnvLoader')) {
+    // 使用与config.php相同的逻辑
+    try {
+        if (function_exists('putenv') && !in_array('putenv', explode(',', ini_get('disable_functions')))) {
+            require_once __DIR__ . '/env.php';
+        } else {
+            require_once __DIR__ . '/env_simple.php';
+            class_alias('EnvLoaderSimple', 'EnvLoader');
+        }
+    } catch (Exception $e) {
+        require_once __DIR__ . '/env_simple.php';
+        class_alias('EnvLoaderSimple', 'EnvLoader');
+    }
+}
 
 class Database {
     private $host;

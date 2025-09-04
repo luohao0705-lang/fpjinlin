@@ -25,11 +25,6 @@ try {
     require_once 'config/config.php';
     require_once 'config/database.php';
     echo "<p class='success'>✓ 配置文件加载成功</p>\n";
-} catch (Exception $e) {
-    echo "<p class='error'>✗ 配置文件加载失败: " . htmlspecialchars($e->getMessage()) . "</p>\n";
-    echo "</body></html>";
-    exit;
-}
 
     // 1. 测试数据库连接
     echo "<h2>1. 测试数据库连接</h2>\n";
@@ -115,6 +110,9 @@ try {
     
 } catch (Exception $e) {
     echo "<p class='error'>✗ 错误: " . htmlspecialchars($e->getMessage()) . "</p>\n";
+    echo "<details><summary>详细信息</summary><pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre></details>\n";
+} catch (Error $e) {
+    echo "<p class='error'>✗ 致命错误: " . htmlspecialchars($e->getMessage()) . "</p>\n";
     echo "<details><summary>详细信息</summary><pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre></details>\n";
 }
 
