@@ -257,29 +257,42 @@ class AnalysisOrder {
      * 删除订单
      */
     public function deleteOrder($orderId) {
-        $order = $this->getOrderById($orderId);
-        if (!$order) {
-            throw new Exception('订单不存在');
-        }
-        
         $this->db->beginTransaction();
         
         try {
-            // 如果订单未完成，退还精灵币
-            if ($order['status'] === 'pending' || $order['status'] === 'processing') {
+            // 获取订单信息
+            $order = $this->getOrderById($orderId);
+            if (!$order) {
+                throw new Exception('订单不存在');
+            }
+            
+            // 根据订单状态退还精灵币
+            if (in_array($order['status'], ['pending', 'processing', 'completed'])) {
                 $user = new User();
-                $user->rechargeCoins(
-                    $order['user_id'], 
-                    $order['cost_coins'], 
-                    null, 
-                    "订单删除退款：{$order['title']}"
-                );
+                
+                if ($order['status'] === 'completed') {
+                    // 已完成订单：直接退还精灵币并记录交易
+                    $user->rechargeCoins(
+                        $order['user_id'], 
+                        $order['cost_coins'], 
+                        $orderId, 
+                        "管理员删除订单退款：{$order['title']}"
+                    );
+                } else {
+                    // 未完成订单：退还精灵币
+                    $user->rechargeCoins(
+                        $order['user_id'], 
+                        $order['cost_coins'], 
+                        $orderId, 
+                        "订单删除退款：{$order['title']}"
+                    );
+                }
             }
             
             // 删除相关文件
             $this->deleteOrderFiles($order);
             
-            // 删除订单
+            // 删除订单记录
             $this->db->query("DELETE FROM analysis_orders WHERE id = ?", [$orderId]);
             
             $this->db->commit();
@@ -312,48 +325,6 @@ class AnalysisOrder {
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
-        }
-    }
-    
-    /**
-     * 删除订单
-     */
-    public function deleteOrder($orderId) {
-        $this->db->beginTransaction();
-        try {
-            // 获取订单信息
-            $order = $this->getOrderById($orderId);
-            if (!$order) {
-                throw new Exception('订单不存在');
-            }
-            
-            // 如果订单已完成，需要退还精灵币
-            if ($order['status'] == 'completed') {
-                // 退还精灵币
-                $this->db->query(
-                    "UPDATE users SET jingling_coins = jingling_coins + ? WHERE id = ?",
-                    [$order['cost_coins'], $order['user_id']]
-                );
-                
-                // 记录退款交易
-                $this->db->insert(
-                    "INSERT INTO coin_transactions (user_id, type, amount, balance_after, related_order_id, description) 
-                     SELECT ?, 'refund', ?, jingling_coins, ?, '管理员删除订单退款' FROM users WHERE id = ?",
-                    [$order['user_id'], $order['cost_coins'], $orderId, $order['user_id']]
-                );
-            }
-            
-            // 删除相关文件
-            $this->deleteOrderFiles($order);
-            
-            // 删除订单记录
-            $this->db->query("DELETE FROM analysis_orders WHERE id = ?", [$orderId]);
-            
-            $this->db->commit();
-            return true;
-        } catch (Exception $e) {
-            $this->db->rollback();
-            throw $e;
         }
     }
     
