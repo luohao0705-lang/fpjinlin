@@ -9,7 +9,12 @@ class User {
     private $smsService;
     
     public function __construct($smsService = null) {
-        $this->db = new Database();
+        // 优先使用单例模式，如果不可用则创建新实例
+        if (method_exists('Database', 'getInstance')) {
+            $this->db = Database::getInstance();
+        } else {
+            $this->db = new Database();
+        }
         $this->smsService = $smsService ?: new SmsService();
     }
     

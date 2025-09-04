@@ -65,6 +65,7 @@ define('MAX_PAGE_SIZE', 100);
  * 自动加载函数
  */
 function autoload($className) {
+    // 优先级目录：主系统类优先于fpjinlin子系统
     $directories = [
         BASE_PATH . '/includes/classes/',
         BASE_PATH . '/includes/models/',
@@ -72,6 +73,25 @@ function autoload($className) {
         BASE_PATH . '/fpjinlin/includes/'
     ];
     
+    // 特殊处理：某些类有冲突时优先使用主系统版本
+    $conflictClasses = ['ExchangeCode', 'User'];
+    if (in_array($className, $conflictClasses)) {
+        // 对于冲突类，只在主系统目录中查找
+        $priorityDirectories = [
+            BASE_PATH . '/includes/classes/',
+            BASE_PATH . '/includes/models/',
+            BASE_PATH . '/includes/services/'
+        ];
+        foreach ($priorityDirectories as $directory) {
+            $file = $directory . $className . '.php';
+            if (file_exists($file)) {
+                require_once $file;
+                return;
+            }
+        }
+    }
+    
+    // 常规查找
     foreach ($directories as $directory) {
         $file = $directory . $className . '.php';
         if (file_exists($file)) {

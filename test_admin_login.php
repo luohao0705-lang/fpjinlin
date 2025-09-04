@@ -146,7 +146,10 @@ try {
                             // 检查潜在的依赖问题
                             $dependencies = [];
                             if (strpos($content, 'Database::getInstance()') !== false) {
-                                $dependencies[] = 'Database::getInstance() 方法不存在';
+                                // 检查Database类是否真的有getInstance方法
+                                if (class_exists('Database') && !method_exists('Database', 'getInstance')) {
+                                    $dependencies[] = 'Database::getInstance() 方法不存在';
+                                }
                             }
                             if (strpos($content, 'getSystemConfig(') !== false && !function_exists('getSystemConfig')) {
                                 $dependencies[] = 'getSystemConfig() 函数可能未加载';
