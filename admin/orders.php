@@ -6,7 +6,6 @@ require_once '../config/config.php';
 require_once '../config/database.php';
 
 // 检查管理员登录
-session_start();
 if (!isset($_SESSION['admin_id'])) {
     header('Location: login.php');
     exit;
