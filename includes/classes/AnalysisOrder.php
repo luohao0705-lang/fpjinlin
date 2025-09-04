@@ -35,15 +35,13 @@ class AnalysisOrder {
             
             // 创建订单
             $orderId = $this->db->insert(
-                "INSERT INTO analysis_orders (user_id, order_no, title, own_script, competitor1_script, competitor2_script, competitor3_script, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())",
+                "INSERT INTO analysis_orders (user_id, order_no, title, self_script, competitor_scripts, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())",
                 [
                     $userId, 
                     $orderNo, 
                     $title, 
                     $ownScript,
-                    $competitorScripts[0] ?? '',
-                    $competitorScripts[1] ?? '',
-                    $competitorScripts[2] ?? '',
+                    json_encode($competitorScripts, JSON_UNESCAPED_UNICODE),
                     $costCoins
                 ]
             );

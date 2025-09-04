@@ -60,8 +60,6 @@ try {
     $result = $analysisOrder->createOrder(
         $userId,
         $title,
-        $screenshots,
-        $cover,
         $selfScript,
         $competitorScripts
     );
@@ -77,8 +75,9 @@ try {
     ]);
     
 } catch (Exception $e) {
+    // 对于业务逻辑错误，返回200状态码但success为false
     jsonResponse([
         'success' => false,
         'message' => $e->getMessage()
-    ], 400);
+    ], 200);
 }
