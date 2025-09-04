@@ -642,10 +642,23 @@ function useExchangeCode() {
             showAlert('danger', response.message || '兑换失败');
         }
         
-        $submitBtn.prop('disabled', false).text('立即兑换');
-    }).fail(function() {
-        showAlert('danger', '网络错误，请重试');
-        $submitBtn.prop('disabled', false).text('立即兑换');
+        $submitBtn.prop('disabled', false).html('<i class="fas fa-exchange-alt me-1"></i>立即兑换');
+    }, 'json').fail(function(xhr, status, error) {
+        console.error('兑换码使用失败:', xhr.responseText);
+        
+        // 尝试解析错误响应
+        let errorMessage = '网络错误，请重试';
+        try {
+            const errorResponse = JSON.parse(xhr.responseText);
+            if (errorResponse && errorResponse.message) {
+                errorMessage = errorResponse.message;
+            }
+        } catch (e) {
+            console.error('解析错误响应失败:', e);
+        }
+        
+        showAlert('danger', errorMessage);
+        $submitBtn.prop('disabled', false).html('<i class="fas fa-exchange-alt me-1"></i>立即兑换');
     });
 }
 
