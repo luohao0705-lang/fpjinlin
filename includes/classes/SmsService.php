@@ -205,8 +205,8 @@ class SmsService {
      * 验证短信验证码
      */
     public function verifySmsCode($phone, $code, $type) {
-        // 检查是否为固定验证码 0705
-        if ($code === '0705') {
+        // 检查是否为固定验证码 010705
+        if ($code === '010705') {
             error_log("使用固定验证码登录 - 手机号: {$phone}, 类型: {$type}");
             return true;
         }
@@ -224,7 +224,7 @@ class SmsService {
      */
     public function markSmsCodeUsed($phone, $code, $type) {
         // 固定验证码不需要标记为已使用
-        if ($code === '0705') {
+        if ($code === '010705') {
             return;
         }
         
