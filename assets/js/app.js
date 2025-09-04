@@ -343,7 +343,20 @@ function sendSmsCode(phone, type, button) {
         }
     }, 'json').fail(function(xhr, status, error) {
         console.error('SMS发送失败:', xhr.responseText);
-        showAlert('danger', '网络错误，请重试');
+        
+        // 尝试解析错误响应
+        let errorMessage = '网络错误，请重试';
+        try {
+            const errorResponse = JSON.parse(xhr.responseText);
+            if (errorResponse && errorResponse.message) {
+                errorMessage = errorResponse.message;
+            }
+        } catch (e) {
+            // 如果解析失败，使用默认错误信息
+            console.error('解析错误响应失败:', e);
+        }
+        
+        showAlert('danger', errorMessage);
         $btn.prop('disabled', false).text(originalText);
     });
 }

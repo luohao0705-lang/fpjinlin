@@ -191,7 +191,12 @@ if (isset($_SESSION['user_id'])) {
         });
         
         // 监听输入变化
-        $('#register-form input, #agree-terms').on('input change', function() {
+        $('#register-form input, #agree-terms').on('input change keyup', function() {
+            updateRegisterButton();
+        });
+        
+        // 页面加载时初始化按钮状态
+        $(document).ready(function() {
             updateRegisterButton();
         });
         
@@ -202,12 +207,26 @@ if (isset($_SESSION['user_id'])) {
             const confirmPassword = $('#confirm-password').val().trim();
             const agreeTerms = $('#agree-terms').prop('checked');
             
+            // 调试信息
+            console.log('注册按钮状态检查:', {
+                phone: phone,
+                phoneValid: /^1[3-9]\d{9}$/.test(phone),
+                smsCode: smsCode,
+                smsCodeValid: smsCode.length === 6,
+                password: password,
+                passwordValid: password.length >= 6,
+                confirmPassword: confirmPassword,
+                passwordMatch: password === confirmPassword,
+                agreeTerms: agreeTerms
+            });
+            
             const canSubmit = phone && /^1[3-9]\d{9}$/.test(phone) && 
                              smsCode && smsCode.length === 6 && 
                              password && password.length >= 6 && 
                              confirmPassword && password === confirmPassword && 
                              agreeTerms;
             
+            console.log('注册按钮可提交:', canSubmit);
             $('#register-form button[type="submit"]').prop('disabled', !canSubmit);
         }
     </script>
