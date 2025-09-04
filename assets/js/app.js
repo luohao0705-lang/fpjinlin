@@ -341,7 +341,8 @@ function sendSmsCode(phone, type, button) {
             showAlert('danger', response.message || '发送失败');
             $btn.prop('disabled', false).text(originalText);
         }
-    }).fail(function() {
+    }, 'json').fail(function(xhr, status, error) {
+        console.error('SMS发送失败:', xhr.responseText);
         showAlert('danger', '网络错误，请重试');
         $btn.prop('disabled', false).text(originalText);
     });

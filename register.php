@@ -103,7 +103,7 @@ if (isset($_SESSION['user_id'])) {
                         </div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg">
+                            <button type="submit" class="btn btn-primary btn-lg" disabled>
                                 <i class="fas fa-user-plus me-2"></i>立即注册
                             </button>
                         </div>
@@ -191,11 +191,11 @@ if (isset($_SESSION['user_id'])) {
         });
         
         // 监听输入变化
-        $('#register-form input').on('input', function() {
-            updateUploadStatus();
+        $('#register-form input, #agree-terms').on('input change', function() {
+            updateRegisterButton();
         });
         
-        function updateUploadStatus() {
+        function updateRegisterButton() {
             const phone = $('#phone').val().trim();
             const smsCode = $('#sms-code').val().trim();
             const password = $('#password').val().trim();
