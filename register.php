@@ -107,6 +107,22 @@ if (isset($_SESSION['user_id'])) {
                                 <i class="fas fa-user-plus me-2"></i>立即注册
                             </button>
                         </div>
+                        
+                        <!-- 调试按钮 -->
+                        <div class="d-grid mt-2">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="checkRegisterButton()">
+                                        <i class="fas fa-bug me-1"></i>调试检查
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="forceEnableButton()">
+                                        <i class="fas fa-unlock me-1"></i>强制启用
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </form>
                     
                     <!-- 登录链接 -->
@@ -188,46 +204,84 @@ if (isset($_SESSION['user_id'])) {
         $('#phone').on('input', function() {
             const phone = $(this).val();
             $('#send-sms-btn').prop('disabled', !phone || !/^1[3-9]\d{9}$/.test(phone));
+            checkRegisterButton();
         });
         
-        // 监听输入变化
-        $('#register-form input, #agree-terms').on('input change keyup', function() {
-            updateRegisterButton();
+        // 监听所有输入变化
+        $('#sms-code, #password, #confirm-password').on('input keyup paste', function() {
+            checkRegisterButton();
         });
         
-        // 页面加载时初始化按钮状态
-        $(document).ready(function() {
-            updateRegisterButton();
+        // 监听复选框变化
+        $('#agree-terms').on('change click', function() {
+            checkRegisterButton();
         });
         
-        function updateRegisterButton() {
+        // 页面加载完成后初始化
+        setTimeout(function() {
+            checkRegisterButton();
+        }, 100);
+        
+        function checkRegisterButton() {
+            console.log('=== 开始检查注册按钮状态 ===');
+            
             const phone = $('#phone').val().trim();
             const smsCode = $('#sms-code').val().trim();
             const password = $('#password').val().trim();
             const confirmPassword = $('#confirm-password').val().trim();
             const agreeTerms = $('#agree-terms').prop('checked');
             
-            // 调试信息
-            console.log('注册按钮状态检查:', {
+            // 详细的验证逻辑
+            const phoneValid = phone && /^1[3-9]\d{9}$/.test(phone);
+            const smsCodeValid = smsCode && smsCode.length === 6;
+            const passwordValid = password && password.length >= 6;
+            const passwordMatch = confirmPassword && password === confirmPassword;
+            
+            console.log('字段值检查:', {
                 phone: phone,
-                phoneValid: /^1[3-9]\d{9}$/.test(phone),
                 smsCode: smsCode,
-                smsCodeValid: smsCode.length === 6,
-                password: password,
-                passwordValid: password.length >= 6,
-                confirmPassword: confirmPassword,
-                passwordMatch: password === confirmPassword,
+                password: password ? '***' : '',
+                confirmPassword: confirmPassword ? '***' : '',
                 agreeTerms: agreeTerms
             });
             
-            const canSubmit = phone && /^1[3-9]\d{9}$/.test(phone) && 
-                             smsCode && smsCode.length === 6 && 
-                             password && password.length >= 6 && 
-                             confirmPassword && password === confirmPassword && 
-                             agreeTerms;
+            console.log('验证结果:', {
+                phoneValid: phoneValid,
+                smsCodeValid: smsCodeValid,
+                passwordValid: passwordValid,
+                passwordMatch: passwordMatch,
+                agreeTerms: agreeTerms
+            });
             
-            console.log('注册按钮可提交:', canSubmit);
-            $('#register-form button[type="submit"]').prop('disabled', !canSubmit);
+            const allValid = phoneValid && smsCodeValid && passwordValid && passwordMatch && agreeTerms;
+            console.log('最终结果 - 可以提交:', allValid);
+            
+            // 获取按钮元素
+            const $submitBtn = $('#register-form button[type="submit"]');
+            console.log('找到按钮元素:', $submitBtn.length > 0);
+            
+            if ($submitBtn.length > 0) {
+                $submitBtn.prop('disabled', !allValid);
+                console.log('按钮disabled状态:', $submitBtn.prop('disabled'));
+                
+                // 添加视觉提示
+                if (allValid) {
+                    $submitBtn.removeClass('btn-secondary').addClass('btn-primary');
+                } else {
+                    $submitBtn.removeClass('btn-primary').addClass('btn-secondary');
+                }
+            } else {
+                console.error('未找到注册按钮元素！');
+            }
+            
+            console.log('=== 检查完成 ===\n');
+        }
+        
+        // 强制启用按钮（调试用）
+        function forceEnableButton() {
+            const $submitBtn = $('#register-form button[type="submit"]');
+            $submitBtn.prop('disabled', false).removeClass('btn-secondary').addClass('btn-primary');
+            console.log('强制启用注册按钮');
         }
     </script>
 </body>
