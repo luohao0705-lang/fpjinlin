@@ -601,9 +601,9 @@ function submitAnalysis() {
         if (response.success) {
             showAlert('success', '分析订单创建成功，AI正在分析中...');
             
-            // 跳转到订单页面
+            // 跳转到我的订单页面
             setTimeout(function() {
-                window.location.href = `order_detail.php?id=${response.data.orderId}`;
+                window.location.href = 'my_orders.php';
             }, 2000);
         } else {
             showAlert('danger', response.message || '提交失败');
