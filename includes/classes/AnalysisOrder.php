@@ -173,12 +173,20 @@ class AnalysisOrder {
         }
         
         try {
+            // 记录开始处理
+            error_log("开始处理分析订单 {$orderId}: {$order['title']}");
+            
             // 更新状态为处理中
             $this->updateOrderStatus($orderId, 'processing');
+            error_log("订单 {$orderId} 状态已更新为processing");
             
             // 调用AI分析服务
+            error_log("订单 {$orderId} 开始调用AI分析服务");
             $deepSeekService = new DeepSeekService();
             $competitorScripts = json_decode($order['competitor_scripts'], true) ?: [];
+            
+            error_log("订单 {$orderId} 话术数据准备完成，同行话术数量: " . count($competitorScripts));
+            
             $analysisResult = $deepSeekService->generateAnalysisReport(
                 [], // screenshots - 暂时为空
                 '', // coverImage - 暂时为空
@@ -186,8 +194,12 @@ class AnalysisOrder {
                 $competitorScripts
             );
             
+            error_log("订单 {$orderId} AI分析完成，开始保存结果");
+            
             // 更新订单结果
             $this->updateOrderStatus($orderId, 'completed', json_encode($analysisResult, JSON_UNESCAPED_UNICODE));
+            
+            error_log("订单 {$orderId} 分析处理完成");
             
             return $analysisResult;
             

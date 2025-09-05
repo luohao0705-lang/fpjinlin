@@ -393,7 +393,7 @@ $todayUsers = $db->fetchOne("SELECT COUNT(*) as today_users FROM users WHERE DAT
                     <td>${statusBadge}</td>
                     <td><small>${formatDateTime(order.created_at)}</small></td>
                     <td>
-                        <a href="../report.php?id=${order.id}" class="btn btn-sm btn-outline-primary">查看</a>
+                        <a href="order_detail.php?id=${order.id}" class="btn btn-sm btn-outline-primary">查看详情</a>
                     </td>
                 </tr>`;
             });
