@@ -399,6 +399,12 @@ $aiReport = json_decode($order['ai_report'], true) ?: null;
                             </button>
                             <?php endif; ?>
                             
+                            <?php if (in_array($order['status'], ['pending', 'processing'])): ?>
+                            <button class="btn btn-success" onclick="triggerAnalysis(<?php echo $orderId; ?>)">
+                                <i class="fas fa-robot me-1"></i>立即执行AI分析
+                            </button>
+                            <?php endif; ?>
+                            
                             <?php if ($order['status'] === 'processing'): ?>
                             <button class="btn btn-warning" onclick="resetOrderStatus(<?php echo $orderId; ?>)">
                                 <i class="fas fa-undo me-1"></i>重置为待处理
@@ -486,6 +492,32 @@ $aiReport = json_decode($order['ai_report'], true) ?: null;
                     alert('操作失败：' + response.message);
                 }
             }, 'json');
+        }
+        
+        // 立即执行AI分析
+        function triggerAnalysis(orderId) {
+            if (!confirm('确定要立即执行AI分析吗？这将直接调用AI接口。')) {
+                return;
+            }
+            
+            const $btn = $('button[onclick="triggerAnalysis(' + orderId + ')"]');
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>分析中...');
+            
+            $.post('api/trigger_analysis.php', {
+                order_id: orderId
+            }, function(response) {
+                if (response.success) {
+                    alert('AI分析已完成！');
+                    location.reload();
+                } else {
+                    alert('分析失败：' + response.message);
+                    $btn.prop('disabled', false).html('<i class="fas fa-robot me-1"></i>立即执行AI分析');
+                }
+            }, 'json').fail(function(xhr) {
+                console.error('分析触发失败:', xhr.responseText);
+                alert('分析触发失败，请查看错误日志');
+                $btn.prop('disabled', false).html('<i class="fas fa-robot me-1"></i>立即执行AI分析');
+            });
         }
         
         // 重置订单状态

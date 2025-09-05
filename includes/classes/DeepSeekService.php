@@ -43,18 +43,29 @@ class DeepSeekService {
      * 生成分析报告
      */
     public function generateAnalysisReport($screenshots, $coverImage, $selfScript, $competitorScripts) {
+        error_log("DeepSeek分析开始 - 检查API密钥配置");
+        
         if (empty($this->apiKey)) {
+            error_log("DeepSeek API密钥未配置");
             throw new Exception('DeepSeek API密钥未配置');
         }
         
+        error_log("DeepSeek API密钥已配置，开始构建分析提示词");
+        
         // 构建分析提示词
         $prompt = $this->buildAnalysisPrompt($selfScript, $competitorScripts);
+        error_log("分析提示词构建完成，长度: " . strlen($prompt));
         
         // 调用DeepSeek API
+        error_log("开始调用DeepSeek API: " . $this->apiUrl);
         $response = $this->callDeepSeekAPI($prompt);
+        error_log("DeepSeek API调用完成，开始解析响应");
         
         // 解析响应
-        return $this->parseAnalysisResponse($response);
+        $result = $this->parseAnalysisResponse($response);
+        error_log("DeepSeek分析报告生成完成");
+        
+        return $result;
     }
     
     /**

@@ -449,11 +449,10 @@ $stats = $db->fetchOne(
                                                 <?php endif; ?>
                                                 
                                                 <!-- 查看详情 -->
-                                                <button type="button" class="btn btn-sm btn-outline-info" 
-                                                        data-bs-toggle="modal" data-bs-target="#orderModal"
-                                                        data-order='<?php echo json_encode($order); ?>'>
+                                                <a href="order_detail.php?id=<?php echo $order['id']; ?>" 
+                                                   class="btn btn-sm btn-outline-info">
                                                     <i class="fas fa-info me-1"></i>详情
-                                                </button>
+                                                </a>
                                                 
                                                 <!-- 删除订单 -->
                                                 <form method="POST" class="d-inline">
