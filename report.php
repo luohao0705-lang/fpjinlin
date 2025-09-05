@@ -34,7 +34,7 @@ if (!$isShare) {
 // 检查订单状态
 if ($order['status'] !== 'completed') {
     if (!$isShare && isset($_SESSION['user_id'])) {
-        header("Location: order_detail.php?id={$orderId}");
+        header("Location: my_orders.php");
         exit;
     } else {
         header('Location: index.php');
