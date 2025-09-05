@@ -283,8 +283,12 @@ class User {
     /**
      * 扣除用户精灵币
      */
-    public function deductCoins($userId, $amount, $description = '', $type = '', $relatedId = null) {
-        $this->db->beginTransaction();
+    public function deductCoins($userId, $amount, $description = '', $type = '', $relatedId = null, $useTransaction = true) {
+        $needTransaction = $useTransaction;
+        
+        if ($needTransaction) {
+            $this->db->beginTransaction();
+        }
         
         try {
             // 检查余额
@@ -308,11 +312,15 @@ class User {
                 [$userId, -$amount, $balanceAfter, $relatedId, $description]
             );
             
-            $this->db->commit();
+            if ($needTransaction) {
+                $this->db->commit();
+            }
             return true;
             
         } catch (Exception $e) {
-            $this->db->rollback();
+            if ($needTransaction) {
+                $this->db->rollback();
+            }
             throw $e;
         }
     }

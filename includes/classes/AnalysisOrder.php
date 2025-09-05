@@ -46,8 +46,8 @@ class AnalysisOrder {
                 ]
             );
             
-            // 扣除精灵币
-            $userObj->deductCoins($userId, $costCoins, '分析订单消费', 'analysis_order', $orderId);
+            // 扣除精灵币（在当前事务中执行）
+            $userObj->deductCoins($userId, $costCoins, '分析订单消费', 'analysis_order', $orderId, false);
             
             $this->db->commit();
             
