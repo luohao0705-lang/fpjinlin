@@ -57,7 +57,7 @@ class AnalysisOrder {
             
             $this->db->commit();
             
-            // 启动后台分析处理
+            // 启动后台分析处理（在事务完成后）
             $this->startBackgroundAnalysis($orderId);
             
             return [
@@ -230,16 +230,67 @@ class AnalysisOrder {
                     exec($command);
                     error_log("启动后台分析处理命令：{$command}");
                 } else {
-                    error_log("分析脚本文件不存在: {$scriptPath}");
-                    // 暂时不执行分析，只创建订单
+                    error_log("分析脚本文件不存在，使用HTTP请求触发分析: {$scriptPath}");
+                    // 使用HTTP请求触发分析
+                    $this->triggerAnalysisViaHttp($orderId);
                 }
             } else {
-                error_log("exec函数不可用，暂时不执行后台分析");
-                // 暂时不执行分析，只创建订单
+                error_log("exec函数不可用，使用HTTP请求触发分析");
+                // 使用HTTP请求触发分析
+                $this->triggerAnalysisViaHttp($orderId);
             }
         } catch (Exception $e) {
             error_log("启动分析处理失败：订单ID {$orderId} - " . $e->getMessage());
             error_log("启动分析错误堆栈: " . $e->getTraceAsString());
+        }
+    }
+    
+    /**
+     * 通过HTTP请求触发分析
+     */
+    private function triggerAnalysisViaHttp($orderId) {
+        try {
+            // 获取当前域名
+            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $url = "{$protocol}://{$host}/admin/api/trigger_analysis.php";
+            
+            error_log("通过HTTP请求触发分析: {$url}");
+            
+            // 准备POST数据
+            $postData = http_build_query([
+                'order_id' => $orderId,
+                'auto_trigger' => 1
+            ]);
+            
+            // 创建上下文
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => [
+                        'Content-Type: application/x-www-form-urlencoded',
+                        'Content-Length: ' . strlen($postData),
+                        'Cookie: ' . ($_SERVER['HTTP_COOKIE'] ?? '')
+                    ],
+                    'content' => $postData,
+                    'timeout' => 1 // 1秒超时，不等待响应
+                ]
+            ]);
+            
+            // 发送异步请求（不等待响应）
+            file_get_contents($url, false, $context);
+            error_log("HTTP触发分析请求已发送：订单ID {$orderId}");
+            
+        } catch (Exception $e) {
+            error_log("HTTP触发分析失败：订单ID {$orderId} - " . $e->getMessage());
+            
+            // 如果HTTP请求也失败，直接执行分析
+            error_log("降级为直接执行分析：订单ID {$orderId}");
+            try {
+                $this->processAnalysis($orderId);
+            } catch (Exception $directError) {
+                error_log("直接执行分析也失败：订单ID {$orderId} - " . $directError->getMessage());
+            }
         }
     }
     

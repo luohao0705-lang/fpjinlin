@@ -8,8 +8,10 @@ require_once '../../config/database.php';
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // 检查管理员登录
-    if (!isset($_SESSION['admin_id'])) {
+    // 检查登录（管理员或自动触发）
+    $isAutoTrigger = isset($_POST['auto_trigger']) && $_POST['auto_trigger'] == 1;
+    
+    if (!$isAutoTrigger && !isset($_SESSION['admin_id'])) {
         throw new Exception('请先登录');
     }
     
@@ -20,7 +22,7 @@ try {
     
     // 获取参数
     $orderId = (int)($_POST['order_id'] ?? 0);
-    $adminId = $_SESSION['admin_id'];
+    $adminId = $isAutoTrigger ? null : $_SESSION['admin_id'];
     
     if (!$orderId) {
         throw new Exception('订单ID不能为空');
@@ -34,11 +36,15 @@ try {
         throw new Exception('订单不存在');
     }
     
-    error_log("管理员 {$adminId} 手动触发分析订单 {$orderId}");
-    
-    // 记录管理员操作
-    $operationLog = new OperationLog();
-    $operationLog->log('admin', $adminId, 'manual_trigger_analysis', 'order', $orderId, "手动触发分析订单：{$order['order_no']}");
+    if ($isAutoTrigger) {
+        error_log("自动触发分析订单 {$orderId}");
+    } else {
+        error_log("管理员 {$adminId} 手动触发分析订单 {$orderId}");
+        
+        // 记录管理员操作
+        $operationLog = new OperationLog();
+        $operationLog->log('admin', $adminId, 'manual_trigger_analysis', 'order', $orderId, "手动触发分析订单：{$order['order_no']}");
+    }
     
     // 立即执行分析
     try {
