@@ -51,6 +51,9 @@ class AnalysisOrder {
             
             $this->db->commit();
             
+            // 启动后台分析处理
+            $this->startBackgroundAnalysis($orderId);
+            
             return [
                 'orderId' => $orderId,
                 'orderNo' => $orderNo,
@@ -182,14 +185,12 @@ class AnalysisOrder {
             
             // 调用AI分析服务
             $deepSeekService = new DeepSeekService();
-            $analysisResult = $deepSeekService->analyzeScript(
-                $order['title'],
-                $order['own_script'],
-                [
-                    $order['competitor1_script'],
-                    $order['competitor2_script'],
-                    $order['competitor3_script']
-                ]
+            $competitorScripts = json_decode($order['competitor_scripts'], true) ?: [];
+            $analysisResult = $deepSeekService->generateAnalysisReport(
+                [], // screenshots - 暂时为空
+                '', // coverImage - 暂时为空
+                $order['self_script'],
+                $competitorScripts
             );
             
             // 更新订单结果
@@ -202,5 +203,61 @@ class AnalysisOrder {
             $this->updateOrderStatus($orderId, 'failed');
             throw $e;
         }
+    }
+    
+    /**
+     * 启动后台分析处理
+     */
+    private function startBackgroundAnalysis($orderId) {
+        try {
+            // 尝试使用异步方式启动分析
+            if (function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions')))) {
+                $scriptPath = dirname(__DIR__, 2) . '/scripts/process_analysis.php';
+                $command = "php {$scriptPath} {$orderId} > /dev/null 2>&1 &";
+                exec($command);
+                error_log("启动后台分析处理：订单ID {$orderId}");
+            } else {
+                // 如果不能异步执行，立即处理
+                error_log("无法异步执行，立即处理分析：订单ID {$orderId}");
+                $this->processAnalysis($orderId);
+            }
+        } catch (Exception $e) {
+            error_log("启动分析处理失败：订单ID {$orderId} - " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 更新订单状态
+     */
+    public function updateOrderStatus($orderId, $status, $report = null, $score = null, $level = null, $errorMessage = null) {
+        $updateData = ['status' => $status];
+        $params = [$status];
+        $setClause = 'status = ?';
+        
+        if ($status === 'completed') {
+            $setClause .= ', completed_at = NOW()';
+            if ($report) {
+                $setClause .= ', ai_report = ?';
+                $params[] = $report;
+            }
+            if ($score !== null) {
+                $setClause .= ', report_score = ?';
+                $params[] = $score;
+            }
+            if ($level) {
+                $setClause .= ', report_level = ?';
+                $params[] = $level;
+            }
+        } elseif ($status === 'failed' && $errorMessage) {
+            $setClause .= ', error_message = ?';
+            $params[] = $errorMessage;
+        }
+        
+        $params[] = $orderId;
+        
+        $this->db->query(
+            "UPDATE analysis_orders SET {$setClause} WHERE id = ?",
+            $params
+        );
     }
 }

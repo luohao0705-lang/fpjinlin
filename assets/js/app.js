@@ -601,10 +601,13 @@ function submitAnalysis() {
         if (response.success) {
             showAlert('success', '分析订单创建成功，AI正在分析中...');
             
-            // 跳转到我的订单页面
+            // 显示进度条并开始轮询
+            showAnalysisProgress(response.data.orderId);
+            
+            // 5秒后跳转到我的订单页面
             setTimeout(function() {
                 window.location.href = 'my_orders.php';
-            }, 2000);
+            }, 5000);
         } else {
             showAlert('danger', response.message || '提交失败');
             $submitBtn.prop('disabled', false).html('<i class="fas fa-magic me-2"></i>开始AI分析');
@@ -678,6 +681,42 @@ function useExchangeCode() {
 }
 
 /**
+ * 显示分析进度
+ */
+function showAnalysisProgress(orderId) {
+    // 创建进度条HTML
+    const progressHtml = `
+        <div class="analysis-progress-overlay position-fixed top-0 start-0 w-100 h-100" 
+             style="background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div class="card" style="width: 400px;">
+                <div class="card-header text-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-magic text-primary me-2"></i>AI分析进行中
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                 id="analysis-progress-bar" style="width: 10%"></div>
+                        </div>
+                        <div id="analysis-status-text" class="text-muted">正在初始化...</div>
+                    </div>
+                    <div class="text-center">
+                        <small class="text-muted">订单号：${orderId}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('body').append(progressHtml);
+    
+    // 开始轮询状态
+    pollOrderStatus(orderId);
+}
+
+/**
  * 轮询订单状态
  */
 function pollOrderStatus(orderId) {
@@ -686,31 +725,42 @@ function pollOrderStatus(orderId) {
             if (response.success) {
                 const order = response.data;
                 
-                // 更新状态显示
-                updateOrderStatusDisplay(order);
+                // 更新进度条
+                $('#analysis-progress-bar').css('width', order.progress + '%');
+                $('#analysis-status-text').text(order.status_text);
                 
                 // 如果订单完成或失败，停止轮询
                 if (order.status === 'completed' || order.status === 'failed') {
                     clearInterval(pollInterval);
                     
-                    if (order.status === 'completed') {
-                        showAlert('success', '分析完成！');
-                        // 刷新页面显示报告
-                        setTimeout(function() {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        showAlert('danger', '分析失败：' + order.error_message);
-                    }
+                    setTimeout(function() {
+                        $('.analysis-progress-overlay').remove();
+                        
+                        if (order.status === 'completed') {
+                            showAlert('success', '分析完成！正在跳转到报告页面...');
+                            setTimeout(function() {
+                                window.location.href = `report.php?id=${orderId}`;
+                            }, 1500);
+                        } else {
+                            showAlert('danger', '分析失败：' + (order.error_message || '未知错误'));
+                            setTimeout(function() {
+                                window.location.href = 'my_orders.php';
+                            }, 2000);
+                        }
+                    }, 1000);
                 }
             }
+        }, 'json').fail(function() {
+            console.error('状态轮询失败');
         });
-    }, 5000); // 每5秒轮询一次
+    }, 3000); // 每3秒轮询一次
     
-    // 5分钟后停止轮询
+    // 2分钟后停止轮询
     setTimeout(function() {
         clearInterval(pollInterval);
-    }, 300000);
+        $('.analysis-progress-overlay').remove();
+        showAlert('info', '分析时间较长，请稍后在我的订单中查看结果');
+    }, 120000);
 }
 
 /**
