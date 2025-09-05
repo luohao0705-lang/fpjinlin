@@ -24,7 +24,13 @@ class AnalysisOrder {
         
         try {
             // 检查精灵币余额
-            $costCoins = getSystemConfig('analysis_cost_coins', 100);
+            try {
+                $costCoins = getSystemConfig('analysis_cost_coins', DEFAULT_ANALYSIS_COST);
+            } catch (Exception $configError) {
+                error_log("获取系统配置失败: " . $configError->getMessage());
+                $costCoins = DEFAULT_ANALYSIS_COST; // 使用默认值
+            }
+            
             $userObj = new User();
             if (!$userObj->checkCoinsBalance($userId, $costCoins)) {
                 throw new Exception('精灵币余额不足，请先充值');
@@ -62,6 +68,9 @@ class AnalysisOrder {
             
         } catch (Exception $e) {
             $this->db->rollback();
+            error_log("创建分析订单异常: " . $e->getMessage());
+            error_log("用户ID: {$userId}, 标题: {$title}");
+            error_log("错误堆栈: " . $e->getTraceAsString());
             throw $e;
         }
     }
@@ -210,19 +219,31 @@ class AnalysisOrder {
      */
     private function startBackgroundAnalysis($orderId) {
         try {
-            // 尝试使用异步方式启动分析
-            if (function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions')))) {
+            error_log("尝试启动后台分析处理：订单ID {$orderId}");
+            
+            // 检查exec函数是否可用
+            $execAvailable = function_exists('exec') && !in_array('exec', explode(',', ini_get('disable_functions')));
+            error_log("exec函数可用性: " . ($execAvailable ? '是' : '否'));
+            
+            if ($execAvailable) {
                 $scriptPath = dirname(__DIR__, 2) . '/scripts/process_analysis.php';
-                $command = "php {$scriptPath} {$orderId} > /dev/null 2>&1 &";
-                exec($command);
-                error_log("启动后台分析处理：订单ID {$orderId}");
+                error_log("脚本路径: {$scriptPath}");
+                
+                if (file_exists($scriptPath)) {
+                    $command = "php {$scriptPath} {$orderId} > /dev/null 2>&1 &";
+                    exec($command);
+                    error_log("启动后台分析处理命令：{$command}");
+                } else {
+                    error_log("分析脚本文件不存在: {$scriptPath}");
+                    // 暂时不执行分析，只创建订单
+                }
             } else {
-                // 如果不能异步执行，立即处理
-                error_log("无法异步执行，立即处理分析：订单ID {$orderId}");
-                $this->processAnalysis($orderId);
+                error_log("exec函数不可用，暂时不执行后台分析");
+                // 暂时不执行分析，只创建订单
             }
         } catch (Exception $e) {
             error_log("启动分析处理失败：订单ID {$orderId} - " . $e->getMessage());
+            error_log("启动分析错误堆栈: " . $e->getTraceAsString());
         }
     }
     

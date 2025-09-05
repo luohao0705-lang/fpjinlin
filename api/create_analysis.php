@@ -75,9 +75,14 @@ try {
     ]);
     
 } catch (Exception $e) {
+    // 记录详细错误信息
+    error_log("创建分析订单失败: " . $e->getMessage());
+    error_log("错误堆栈: " . $e->getTraceAsString());
+    
     // 对于业务逻辑错误，返回200状态码但success为false
     jsonResponse([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => '系统错误，请稍后重试',
+        'error_code' => 500
     ], 200);
 }
