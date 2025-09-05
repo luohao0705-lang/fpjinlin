@@ -112,22 +112,6 @@ class AnalysisOrder {
         ];
     }
     
-    /**
-     * 更新订单状态
-     */
-    public function updateOrderStatus($orderId, $status, $result = null) {
-        $params = [$status, $orderId];
-        $sql = "UPDATE analysis_orders SET status = ?";
-        
-        if ($result !== null) {
-            $sql .= ", analysis_result = ?";
-            $params = [$status, $result, $orderId];
-        }
-        
-        $sql .= " WHERE id = ?";
-        
-        return $this->db->query($sql, $params);
-    }
     
     /**
      * 删除订单

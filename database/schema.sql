@@ -186,6 +186,22 @@ INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `desc
 ('site_logo', '/assets/images/logo.png', 'string', '网站Logo'),
 ('report_template_path', '/assets/templates/report_template.pdf', 'string', '报告模板PDF路径');
 
+-- 10. 错误日志表
+CREATE TABLE `error_logs` (
+    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `error_type` VARCHAR(50) NOT NULL COMMENT '错误类型',
+    `error_message` TEXT NOT NULL COMMENT '错误消息',
+    `file_path` VARCHAR(255) DEFAULT NULL COMMENT '错误文件路径',
+    `line_number` INT(11) DEFAULT NULL COMMENT '错误行号',
+    `user_id` INT(11) UNSIGNED DEFAULT NULL COMMENT '用户ID',
+    `ip_address` VARCHAR(45) DEFAULT NULL COMMENT 'IP地址',
+    `user_agent` TEXT COMMENT '用户代理',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX `idx_error_type` (`error_type`),
+    INDEX `idx_created_at` (`created_at`),
+    INDEX `idx_user_id` (`user_id`)
+) ENGINE=InnoDB COMMENT='错误日志表';
+
 -- 插入默认管理员账户 (用户名: admin, 密码: admin123)
 INSERT INTO `admins` (`username`, `password_hash`, `real_name`, `role`, `permissions`) VALUES
 ('admin', '$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm', '超级管理员', 'super_admin', 
