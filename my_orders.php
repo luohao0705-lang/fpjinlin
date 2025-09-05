@@ -20,6 +20,7 @@ $userInfo = $user->getUserById($_SESSION['user_id']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的订单 - <?php echo APP_NAME; ?></title>
+    <!-- 文件更新时间: <?php echo date('Y-m-d H:i:s'); ?> -->
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -126,7 +127,7 @@ $userInfo = $user->getUserById($_SESSION['user_id']);
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- 自定义JS -->
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/app.js?v=<?php echo time(); ?>"></script>
     
     <script>
         let currentPage = 1;
