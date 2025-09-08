@@ -39,13 +39,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $configKeys = [
             'deepseek_api_key' => 'DeepSeek API密钥',
             'deepseek_api_url' => 'DeepSeek API地址',
+            'qwen_omni_api_key' => 'Qwen-Omni API密钥',
+            'qwen_omni_api_url' => 'Qwen-Omni API地址',
+            'whisper_model_path' => 'Whisper模型路径',
+            'oss_bucket' => 'OSS存储桶名称',
+            'oss_endpoint' => 'OSS端点',
+            'oss_access_key' => 'OSS访问密钥',
+            'oss_secret_key' => 'OSS秘密密钥',
+            'video_analysis_cost_coins' => '视频分析消费精灵币数量',
+            'max_video_duration' => '最大视频时长(秒)',
+            'video_segment_duration' => '视频切片时长(秒)',
+            'video_resolution' => '视频转码分辨率',
+            'video_bitrate' => '视频转码码率',
+            'audio_bitrate' => '音频转码码率',
+            'max_concurrent_processing' => '最大并发处理数量',
+            'video_retention_days' => '视频文件保留天数',
             'sms_access_key' => '短信AccessKey',
             'sms_access_secret' => '短信AccessSecret',
             'sms_sign_name' => '短信签名',
             'sms_template_register' => '注册短信模板',
             'sms_template_login' => '登录短信模板',
             'sms_template_analysis' => '分析完成短信模板',
-            'analysis_cost_coins' => '分析消费精灵币数量',
+            'analysis_cost_coins' => '文本分析消费精灵币数量',
             'max_upload_size' => '最大上传文件大小(MB)',
             'site_title' => '网站标题',
             'site_description' => '网站描述',
@@ -59,12 +74,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $value = trim($_POST[$key] ?? '');
                 
                 // 验证必填项
-                if (in_array($key, ['deepseek_api_key', 'analysis_cost_coins']) && empty($value)) {
+                if (in_array($key, ['deepseek_api_key', 'analysis_cost_coins', 'video_analysis_cost_coins']) && empty($value)) {
                     throw new Exception($description . '不能为空');
                 }
                 
                 // 验证数字类型
-                if (in_array($key, ['analysis_cost_coins', 'max_upload_size']) && !is_numeric($value)) {
+                if (in_array($key, ['analysis_cost_coins', 'video_analysis_cost_coins', 'max_upload_size', 'max_video_duration', 'video_segment_duration', 'max_concurrent_processing', 'video_retention_days']) && !is_numeric($value)) {
                     throw new Exception($description . '必须为数字');
                 }
                 
@@ -252,7 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                    name="deepseek_api_key" 
                                                    value="<?php echo htmlspecialchars($configMap['deepseek_api_key'] ?? ''); ?>" 
                                                    required>
-                                            <div class="form-text">用于调用DeepSeek AI分析服务</div>
+                                            <div class="form-text">用于文本分析服务</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -261,6 +276,184 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <input type="url" class="form-control" id="deepseek_api_url" 
                                                    name="deepseek_api_url" 
                                                    value="<?php echo htmlspecialchars($configMap['deepseek_api_url'] ?? 'https://api.deepseek.com/v1/chat/completions'); ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="qwen_omni_api_key" class="form-label">Qwen-Omni API密钥</label>
+                                            <input type="password" class="form-control" id="qwen_omni_api_key" 
+                                                   name="qwen_omni_api_key" 
+                                                   value="<?php echo htmlspecialchars($configMap['qwen_omni_api_key'] ?? ''); ?>">
+                                            <div class="form-text">用于视频内容理解分析</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="qwen_omni_api_url" class="form-label">Qwen-Omni API地址</label>
+                                            <input type="url" class="form-control" id="qwen_omni_api_url" 
+                                                   name="qwen_omni_api_url" 
+                                                   value="<?php echo htmlspecialchars($configMap['qwen_omni_api_url'] ?? 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-understanding/generation'); ?>">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="whisper_model_path" class="form-label">Whisper模型路径</label>
+                                            <input type="text" class="form-control" id="whisper_model_path" 
+                                                   name="whisper_model_path" 
+                                                   value="<?php echo htmlspecialchars($configMap['whisper_model_path'] ?? '/opt/whisper/models'); ?>">
+                                            <div class="form-text">Whisper语音识别模型文件路径</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 视频分析配置 -->
+                    <div class="config-section">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-video me-2"></i>视频分析配置
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="video_analysis_cost_coins" class="form-label">
+                                                视频分析消费精灵币数量 <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="video_analysis_cost_coins" 
+                                                   name="video_analysis_cost_coins" min="1" 
+                                                   value="<?php echo htmlspecialchars($configMap['video_analysis_cost_coins'] ?? '50'); ?>" 
+                                                   required>
+                                            <div class="form-text">每次视频分析消费的精灵币数量</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="max_video_duration" class="form-label">最大视频时长(秒)</label>
+                                            <input type="number" class="form-control" id="max_video_duration" 
+                                                   name="max_video_duration" min="60" max="7200"
+                                                   value="<?php echo htmlspecialchars($configMap['max_video_duration'] ?? '3600'); ?>">
+                                            <div class="form-text">支持的最大视频时长，默认60分钟</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="video_segment_duration" class="form-label">视频切片时长(秒)</label>
+                                            <input type="number" class="form-control" id="video_segment_duration" 
+                                                   name="video_segment_duration" min="30" max="300"
+                                                   value="<?php echo htmlspecialchars($configMap['video_segment_duration'] ?? '120'); ?>">
+                                            <div class="form-text">视频切片处理时长，默认2分钟</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="video_resolution" class="form-label">视频转码分辨率</label>
+                                            <select class="form-control" id="video_resolution" name="video_resolution">
+                                                <option value="480p" <?php echo ($configMap['video_resolution'] ?? '720p') == '480p' ? 'selected' : ''; ?>>480p</option>
+                                                <option value="720p" <?php echo ($configMap['video_resolution'] ?? '720p') == '720p' ? 'selected' : ''; ?>>720p</option>
+                                                <option value="1080p" <?php echo ($configMap['video_resolution'] ?? '720p') == '1080p' ? 'selected' : ''; ?>>1080p</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="video_bitrate" class="form-label">视频转码码率</label>
+                                            <input type="text" class="form-control" id="video_bitrate" 
+                                                   name="video_bitrate" 
+                                                   value="<?php echo htmlspecialchars($configMap['video_bitrate'] ?? '1500k'); ?>">
+                                            <div class="form-text">如：1500k, 2000k</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="audio_bitrate" class="form-label">音频转码码率</label>
+                                            <input type="text" class="form-control" id="audio_bitrate" 
+                                                   name="audio_bitrate" 
+                                                   value="<?php echo htmlspecialchars($configMap['audio_bitrate'] ?? '64k'); ?>">
+                                            <div class="form-text">如：64k, 128k</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="max_concurrent_processing" class="form-label">最大并发处理数量</label>
+                                            <input type="number" class="form-control" id="max_concurrent_processing" 
+                                                   name="max_concurrent_processing" min="1" max="10"
+                                                   value="<?php echo htmlspecialchars($configMap['max_concurrent_processing'] ?? '3'); ?>">
+                                            <div class="form-text">同时处理的视频分析任务数量</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="video_retention_days" class="form-label">视频文件保留天数</label>
+                                            <input type="number" class="form-control" id="video_retention_days" 
+                                                   name="video_retention_days" min="1" max="365"
+                                                   value="<?php echo htmlspecialchars($configMap['video_retention_days'] ?? '30'); ?>">
+                                            <div class="form-text">视频文件在服务器上的保留时间</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OSS存储配置 -->
+                    <div class="config-section">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-cloud me-2"></i>OSS存储配置
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="oss_bucket" class="form-label">OSS存储桶名称</label>
+                                            <input type="text" class="form-control" id="oss_bucket" 
+                                                   name="oss_bucket" 
+                                                   value="<?php echo htmlspecialchars($configMap['oss_bucket'] ?? ''); ?>">
+                                            <div class="form-text">阿里云OSS存储桶名称</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="oss_endpoint" class="form-label">OSS端点</label>
+                                            <input type="text" class="form-control" id="oss_endpoint" 
+                                                   name="oss_endpoint" 
+                                                   value="<?php echo htmlspecialchars($configMap['oss_endpoint'] ?? ''); ?>">
+                                            <div class="form-text">如：oss-cn-hangzhou.aliyuncs.com</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="oss_access_key" class="form-label">OSS访问密钥</label>
+                                            <input type="password" class="form-control" id="oss_access_key" 
+                                                   name="oss_access_key" 
+                                                   value="<?php echo htmlspecialchars($configMap['oss_access_key'] ?? ''); ?>">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="oss_secret_key" class="form-label">OSS秘密密钥</label>
+                                            <input type="password" class="form-control" id="oss_secret_key" 
+                                                   name="oss_secret_key" 
+                                                   value="<?php echo htmlspecialchars($configMap['oss_secret_key'] ?? ''); ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -439,13 +632,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <h6>AI服务配置</h6>
                                 <ul class="list-unstyled">
-                                    <li><i class="fas fa-check text-success me-2"></i>DeepSeek API密钥：从DeepSeek官网获取</li>
-                                    <li><i class="fas fa-check text-success me-2"></i>API地址：默认使用官方地址，如有私有部署可修改</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>DeepSeek：用于文本分析</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Qwen-Omni：用于视频理解</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Whisper：用于语音识别</li>
                                 </ul>
                             </div>
+                            <div class="col-md-4">
+                                <h6>视频分析配置</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>消费精灵币：视频分析比文本分析消耗更多</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>视频处理：自动下载、转码、切片</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>并发限制：控制服务器负载</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>OSS存储配置</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>存储视频文件和处理结果</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>需要阿里云OSS服务</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>支持自动清理过期文件</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
                             <div class="col-md-6">
                                 <h6>短信服务配置</h6>
                                 <ul class="list-unstyled">
@@ -454,8 +666,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <li><i class="fas fa-check text-success me-2"></i>签名需要在阿里云控制台申请</li>
                                 </ul>
                             </div>
-                        </div>
-                        <div class="row mt-3">
                             <div class="col-md-6">
                                 <h6>业务配置</h6>
                                 <ul class="list-unstyled">
@@ -463,6 +673,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <li><i class="fas fa-check text-success me-2"></i>上传限制：单个文件最大大小</li>
                                 </ul>
                             </div>
+                        </div>
+                        <div class="row mt-3">
                             <div class="col-md-6">
                                 <h6>网站信息</h6>
                                 <ul class="list-unstyled">
