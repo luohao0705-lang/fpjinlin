@@ -23,19 +23,11 @@ class DeepSeekService {
         $this->apiUrl = EnvLoader::get('DEEPSEEK_API_URL', 'https://api.deepseek.com/v1/chat/completions');
         
         // 如果环境变量没有配置，则从数据库读取
-        if (empty($this->apiKey) || empty($this->apiUrl)) {
-            $configs = $this->db->fetchAll(
-                "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?)",
-                ['deepseek_api_key', 'deepseek_api_url']
-            );
-            
-            foreach ($configs as $config) {
-                if ($config['config_key'] === 'deepseek_api_key' && empty($this->apiKey)) {
-                    $this->apiKey = $config['config_value'];
-                } elseif ($config['config_key'] === 'deepseek_api_url' && empty($this->apiUrl)) {
-                    $this->apiUrl = $config['config_value'];
-                }
-            }
+        if (empty($this->apiKey)) {
+            $this->apiKey = getSystemConfig('deepseek_api_key', '');
+        }
+        if (empty($this->apiUrl)) {
+            $this->apiUrl = getSystemConfig('deepseek_api_url', 'https://api.deepseek.com/v1/chat/completions');
         }
     }
     
