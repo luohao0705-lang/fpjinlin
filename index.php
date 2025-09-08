@@ -47,7 +47,10 @@ if ($isLoggedIn) {
                     </li>
                     <?php if ($isLoggedIn): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="create_analysis.php">创建分析</a>
+                        <a class="nav-link" href="create_analysis.php">文本分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="create_video_analysis.php">视频分析</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="my_orders.php">我的订单</a>
@@ -112,7 +115,10 @@ if ($isLoggedIn) {
                     <?php else: ?>
                     <div class="d-grid gap-2 d-md-flex justify-content-md-center">
                         <a href="create_analysis.php" class="btn btn-primary btn-lg me-md-2">
-                            <i class="fas fa-plus me-2"></i>创建分析
+                            <i class="fas fa-file-text me-2"></i>文本分析
+                        </a>
+                        <a href="create_video_analysis.php" class="btn btn-success btn-lg me-md-2">
+                            <i class="fas fa-video me-2"></i>视频分析
                         </a>
                         <a href="my_orders.php" class="btn btn-outline-primary btn-lg">
                             <i class="fas fa-list me-2"></i>我的订单
@@ -125,38 +131,48 @@ if ($isLoggedIn) {
 
         <!-- 功能特色 -->
         <div class="row mb-5">
-            <div class="col-lg-4 mb-4">
+            <div class="col-lg-3 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body text-center">
                         <div class="feature-icon mb-3">
-                            <i class="fas fa-brain fa-3x text-primary"></i>
+                            <i class="fas fa-file-text fa-3x text-primary"></i>
                         </div>
-                        <h5 class="card-title">AI智能分析</h5>
-                        <p class="card-text">基于DeepSeek大模型，深度分析直播话术的逻辑结构、情感调动和转化效果</p>
+                        <h5 class="card-title">文本分析</h5>
+                        <p class="card-text">基于截图和话术文本，AI深度分析直播逻辑结构和转化效果</p>
                     </div>
                 </div>
             </div>
             
-            <div class="col-lg-4 mb-4">
+            <div class="col-lg-3 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body text-center">
                         <div class="feature-icon mb-3">
-                            <i class="fas fa-chart-line fa-3x text-success"></i>
+                            <i class="fas fa-video fa-3x text-success"></i>
+                        </div>
+                        <h5 class="card-title">视频分析</h5>
+                        <p class="card-text">智能视频理解，语音识别+内容分析，全方位复盘直播表现</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="feature-icon mb-3">
+                        <i class="fas fa-chart-line fa-3x text-warning"></i>
                         </div>
                         <h5 class="card-title">同行对比</h5>
-                        <p class="card-text">对比分析同行话术优势，识别差异化机会，提供具体的优化建议</p>
+                        <p class="card-text">对比分析同行优势，识别差异化机会，提供具体优化建议</p>
                     </div>
                 </div>
             </div>
             
-            <div class="col-lg-4 mb-4">
+            <div class="col-lg-3 mb-4">
                 <div class="card h-100 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="feature-icon mb-3">
-                            <i class="fas fa-file-export fa-3x text-info"></i>
+                    <div class="feature-icon mb-3">
+                        <i class="fas fa-file-export fa-3x text-info"></i>
                         </div>
                         <h5 class="card-title">专业报告</h5>
-                        <p class="card-text">生成专业的分析报告，支持在线查看、链接分享、图片导出和PDF下载</p>
+                        <p class="card-text">生成专业分析报告，支持在线查看、分享、导出多种格式</p>
                     </div>
                 </div>
             </div>
@@ -166,7 +182,14 @@ if ($isLoggedIn) {
         <div class="row mb-5">
             <div class="col-12">
                 <h2 class="text-center mb-4">使用流程</h2>
-                <div class="row">
+                
+                <!-- 文本分析流程 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-center mb-3">
+                            <i class="fas fa-file-text me-2 text-primary"></i>文本分析流程
+                        </h5>
+                    </div>
                     <div class="col-md-3 text-center mb-3">
                         <div class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
                             <span class="fw-bold">1</span>
@@ -194,6 +217,43 @@ if ($isLoggedIn) {
                         </div>
                         <h6>获取报告</h6>
                         <p class="text-muted small">查看报告并导出分享</p>
+                    </div>
+                </div>
+                
+                <!-- 视频分析流程 -->
+                <div class="row">
+                    <div class="col-12">
+                        <h5 class="text-center mb-3">
+                            <i class="fas fa-video me-2 text-success"></i>视频分析流程
+                        </h5>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-number bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">1</span>
+                        </div>
+                        <h6>提供链接</h6>
+                        <p class="text-muted small">输入视频号分享链接</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-number bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">2</span>
+                        </div>
+                        <h6>智能处理</h6>
+                        <p class="text-muted small">自动下载、转码、切片</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-number bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">3</span>
+                        </div>
+                        <h6>AI理解</h6>
+                        <p class="text-muted small">语音识别+视频内容分析</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <div class="step-number bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">4</span>
+                        </div>
+                        <h6>综合报告</h6>
+                        <p class="text-muted small">生成全方位分析报告</p>
                     </div>
                 </div>
             </div>

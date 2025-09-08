@@ -155,7 +155,12 @@ $todayUsers = $db->fetchOne("SELECT COUNT(*) as today_users FROM users WHERE DAT
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="orders.php">
-                                <i class="fas fa-list-alt me-2"></i>订单管理
+                                <i class="fas fa-file-text me-2"></i>文本分析订单
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="video_orders.php">
+                                <i class="fas fa-video me-2"></i>视频分析订单
                             </a>
                         </li>
                         <li class="nav-item">
