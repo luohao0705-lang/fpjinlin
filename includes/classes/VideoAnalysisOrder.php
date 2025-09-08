@@ -294,4 +294,128 @@ class VideoAnalysisOrder {
             ];
         }
     }
+    
+    /**
+     * 启动视频分析
+     */
+    public function startAnalysis($orderId) {
+        $this->db->beginTransaction();
+        
+        try {
+            // 检查订单状态
+            $order = $this->getOrderById($orderId);
+            if (!$order) {
+                throw new Exception('订单不存在');
+            }
+            
+            if ($order['status'] !== 'pending' && $order['status'] !== 'reviewing') {
+                throw new Exception('订单状态不允许启动分析');
+            }
+            
+            // 检查是否已填写FLV地址
+            $videoFiles = $this->db->fetchAll(
+                "SELECT * FROM video_files WHERE order_id = ? AND (flv_url IS NULL OR flv_url = '')",
+                [$orderId]
+            );
+            
+            if (!empty($videoFiles)) {
+                throw new Exception('请先填写所有视频的FLV地址');
+            }
+            
+            // 更新订单状态为处理中
+            $this->updateOrderStatus($orderId, 'processing');
+            
+            // 创建处理任务
+            $this->createProcessingTasks($orderId);
+            
+            $this->db->commit();
+            
+            return [
+                'success' => true,
+                'message' => '分析已启动'
+            ];
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+    
+    /**
+     * 停止视频分析
+     */
+    public function stopAnalysis($orderId) {
+        $this->db->beginTransaction();
+        
+        try {
+            // 更新订单状态为失败
+            $this->updateOrderStatus($orderId, 'failed', null, null, null, '管理员手动停止');
+            
+            // 停止所有处理中的任务
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'failed', error_message = '管理员手动停止' 
+                 WHERE order_id = ? AND status IN ('pending', 'processing')",
+                [$orderId]
+            );
+            
+            $this->db->commit();
+            
+            return [
+                'success' => true,
+                'message' => '分析已停止'
+            ];
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+    
+    /**
+     * 创建处理任务
+     */
+    private function createProcessingTasks($orderId) {
+        $videoFiles = $this->db->fetchAll(
+            "SELECT * FROM video_files WHERE order_id = ? ORDER BY video_type, video_index",
+            [$orderId]
+        );
+        
+        foreach ($videoFiles as $videoFile) {
+            // 下载任务
+            $this->db->insert(
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'download', ?, 1, 'pending')",
+                [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
+            );
+            
+            // 转码任务
+            $this->db->insert(
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'transcode', ?, 2, 'pending')",
+                [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
+            );
+            
+            // 切片任务
+            $this->db->insert(
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'segment', ?, 3, 'pending')",
+                [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
+            );
+            
+            // 语音识别任务
+            $this->db->insert(
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'asr', ?, 4, 'pending')",
+                [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
+            );
+        }
+        
+        // 视频理解任务
+        $this->db->insert(
+            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'analysis', ?, 5, 'pending')",
+            [$orderId, json_encode(['order_id' => $orderId])]
+        );
+        
+        // 报告生成任务
+        $this->db->insert(
+            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'report', ?, 6, 'pending')",
+            [$orderId, json_encode(['order_id' => $orderId])]
+        );
+    }
 }

@@ -121,9 +121,15 @@ $maxVideoDuration = getSystemConfig('max_video_duration', 3600);
                             <!-- 本方视频链接 -->
                             <div class="mb-3">
                                 <label for="self_video_link" class="form-label">本方直播视频链接 <span class="text-danger">*</span></label>
-                                <input type="url" class="form-control" id="self_video_link" name="self_video_link" 
-                                       placeholder="请粘贴您的直播视频分享链接（抖音/快手/小红书）" required>
-                                <div class="form-text">支持抖音、快手、小红书平台的视频分享链接</div>
+                                <textarea class="form-control" id="self_video_link" name="self_video_link" 
+                                          placeholder="请粘贴您的直播视频分享链接（抖音/快手/小红书）&#10;支持直接粘贴完整的分享文本，系统会自动提取链接" 
+                                          rows="3" required></textarea>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle text-info me-1"></i>
+                                    支持抖音、快手、小红书平台的视频分享链接<br>
+                                    <i class="fas fa-lightbulb text-warning me-1"></i>
+                                    可以直接粘贴完整的分享文本，系统会自动提取其中的视频链接
+                                </div>
                             </div>
 
                             <!-- 同行视频链接 -->

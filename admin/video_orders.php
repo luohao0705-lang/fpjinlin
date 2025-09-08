@@ -322,17 +322,17 @@ foreach ($statusStats as $stat) {
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary" onclick="viewOrder(<?php echo $order['id']; ?>)">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
+                                                <a href="video_order_detail.php?id=<?php echo $order['id']; ?>" class="btn btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>详情
+                                                </a>
                                                 <?php if ($order['status'] === 'pending'): ?>
                                                 <button type="button" class="btn btn-outline-success" onclick="approveOrder(<?php echo $order['id']; ?>)">
-                                                    <i class="fas fa-check"></i>
+                                                    <i class="fas fa-check me-1"></i>审核
                                                 </button>
                                                 <?php endif; ?>
                                                 <?php if ($order['status'] === 'completed'): ?>
                                                 <button type="button" class="btn btn-outline-info" onclick="viewReport(<?php echo $order['id']; ?>)">
-                                                    <i class="fas fa-file-alt"></i>
+                                                    <i class="fas fa-file-alt me-1"></i>报告
                                                 </button>
                                                 <?php endif; ?>
                                             </div>

@@ -337,11 +337,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="max_video_duration" class="form-label">最大视频时长(秒)</label>
+                                            <label for="max_video_duration" class="form-label">最大视频分析时长(秒)</label>
                                             <input type="number" class="form-control" id="max_video_duration" 
-                                                   name="max_video_duration" min="60" max="7200"
+                                                   name="max_video_duration" min="60" max="3600"
                                                    value="<?php echo htmlspecialchars($configMap['max_video_duration'] ?? '3600'); ?>">
-                                            <div class="form-text">支持的最大视频时长，默认60分钟</div>
+                                            <div class="form-text">单个直播间视频最多分析时长，固定为60分钟(3600秒)</div>
                                         </div>
                                     </div>
                                 </div>

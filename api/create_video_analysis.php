@@ -39,19 +39,26 @@ try {
         throw new Exception('请输入2个同行视频链接');
     }
     
-    // 验证视频链接格式
-    if (!isValidVideoLink($selfVideoLink)) {
-        throw new Exception('本方视频链接格式不正确');
+    // 提取和验证视频链接
+    $extractedSelfLink = extractVideoLink($selfVideoLink);
+    if (!$extractedSelfLink) {
+        throw new Exception('本方视频链接格式不正确，请提供有效的视频分享链接');
     }
     
     foreach ($competitorVideoLinks as $index => $link) {
         if (empty(trim($link))) {
             throw new Exception('同行' . ($index + 1) . '视频链接不能为空');
         }
-        if (!isValidVideoLink($link)) {
-            throw new Exception('同行' . ($index + 1) . '视频链接格式不正确');
+        $extractedLink = extractVideoLink($link);
+        if (!$extractedLink) {
+            throw new Exception('同行' . ($index + 1) . '视频链接格式不正确，请提供有效的视频分享链接');
         }
+        // 更新为提取后的链接
+        $competitorVideoLinks[$index] = $extractedLink;
     }
+    
+    // 更新本方链接为提取后的链接
+    $selfVideoLink = $extractedSelfLink;
     
     // 创建视频分析订单
     $videoAnalysisOrder = new VideoAnalysisOrder();
@@ -85,16 +92,63 @@ try {
 }
 
 /**
+ * 从文本中提取视频链接
+ */
+function extractVideoLink($text) {
+    // 清理输入文本
+    $text = trim($text);
+    
+    // 定义支持的平台链接模式
+    $patterns = [
+        // 抖音短链接 (v.douyin.com)
+        '/https?:\/\/v\.douyin\.com\/[a-zA-Z0-9_-]+/',
+        // 抖音完整链接
+        '/https?:\/\/(www\.)?(douyin|iesdouyin)\.com\/video\/\d+/',
+        // 快手短链接
+        '/https?:\/\/v\.kuaishou\.com\/[a-zA-Z0-9_-]+/',
+        // 快手完整链接
+        '/https?:\/\/(www\.)?kuaishou\.com\/video\/\d+/',
+        // 小红书链接
+        '/https?:\/\/(www\.)?xiaohongshu\.com\/explore\/[a-zA-Z0-9_-]+/',
+        // 小红书短链接
+        '/https?:\/\/xhslink\.com\/[a-zA-Z0-9_-]+/'
+    ];
+    
+    // 尝试从文本中提取链接
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $text, $matches)) {
+            $extractedUrl = $matches[0];
+            
+            // 清理URL，移除可能的额外字符
+            $extractedUrl = preg_replace('/[^\w\/:\.-]+$/', '', $extractedUrl);
+            
+            // 验证提取的链接是否有效
+            if (isValidVideoLink($extractedUrl)) {
+                return $extractedUrl;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
  * 验证视频链接格式
  */
 function isValidVideoLink($url) {
     $patterns = [
-        // 抖音链接
-        '/^https?:\/\/(www\.)?(douyin|iesdouyin)\.com\/video\/\d+/',
-        // 快手链接
-        '/^https?:\/\/(www\.)?kuaishou\.com\/video\/\d+/',
+        // 抖音短链接
+        '/^https?:\/\/v\.douyin\.com\/[a-zA-Z0-9_-]+$/',
+        // 抖音完整链接
+        '/^https?:\/\/(www\.)?(douyin|iesdouyin)\.com\/video\/\d+$/',
+        // 快手短链接
+        '/^https?:\/\/v\.kuaishou\.com\/[a-zA-Z0-9_-]+$/',
+        // 快手完整链接
+        '/^https?:\/\/(www\.)?kuaishou\.com\/video\/\d+$/',
         // 小红书链接
-        '/^https?:\/\/(www\.)?xiaohongshu\.com\/explore\/\w+/'
+        '/^https?:\/\/(www\.)?xiaohongshu\.com\/explore\/[a-zA-Z0-9_-]+$/',
+        // 小红书短链接
+        '/^https?:\/\/xhslink\.com\/[a-zA-Z0-9_-]+$/'
     ];
     
     foreach ($patterns as $pattern) {
