@@ -918,8 +918,8 @@ class VideoProcessor {
             throw new Exception("FFmpeg进程过多（{$ffmpegProcesses}/{$maxConcurrent}），请等待其他录制完成");
         }
         
-        error_log("✅ 系统资源检查通过 - 内存: " . $this->formatBytes($memoryUsage) . "/" . $this->formatBytes($memoryLimitBytes) . 
-                 ", CPU负载: " . $loadAvg[0] . ", 磁盘空间: " . $this->formatBytes($freeSpace) . 
+        error_log("✅ 系统资源检查通过 - 内存: " . $this->formatFileSize($memoryUsage) . "/" . $this->formatFileSize($memoryLimitBytes) . 
+                 ", CPU负载: " . $loadAvg[0] . ", 磁盘空间: " . $this->formatFileSize($freeSpace) . 
                  ", FFmpeg进程: {$ffmpegProcesses}");
     }
     
