@@ -322,6 +322,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 </h5>
                             </div>
                             <div class="card-body">
+                                <!-- 录制参数说明 -->
+                                <div class="alert alert-info mb-4">
+                                    <h6><i class="fas fa-info-circle me-2"></i>录制参数说明</h6>
+                                    <p class="mb-2">用户提交视频分析订单后，系统将按照以下参数进行录制：</p>
+                                    <ul class="mb-0">
+                                        <li><strong>录制时长</strong>：每个直播间录制多长时间（建议3-10分钟）</li>
+                                        <li><strong>切片时长</strong>：录制完成后，每多少秒切一个片段进行分析（建议30-120秒）</li>
+                                        <li><strong>示例</strong>：如果设置录制3分钟，切片1分钟，则会产生3个1分钟的片段进行AI分析</li>
+                                    </ul>
+                                </div>
+                                
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -337,11 +348,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="max_video_duration" class="form-label">最大视频分析时长(秒)</label>
+                                            <label for="max_video_duration" class="form-label">直播间录制时长(秒)</label>
                                             <input type="number" class="form-control" id="max_video_duration" 
                                                    name="max_video_duration" min="60" max="3600"
-                                                   value="<?php echo htmlspecialchars($configMap['max_video_duration'] ?? '3600'); ?>">
-                                            <div class="form-text">单个直播间视频最多分析时长，固定为60分钟(3600秒)</div>
+                                                   value="<?php echo htmlspecialchars($configMap['max_video_duration'] ?? '180'); ?>">
+                                            <div class="form-text">每个直播间录制多长时间，建议3-10分钟(180-600秒)</div>
                                         </div>
                                     </div>
                                 </div>
@@ -351,8 +362,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <label for="video_segment_duration" class="form-label">视频切片时长(秒)</label>
                                             <input type="number" class="form-control" id="video_segment_duration" 
                                                    name="video_segment_duration" min="30" max="300"
-                                                   value="<?php echo htmlspecialchars($configMap['video_segment_duration'] ?? '120'); ?>">
-                                            <div class="form-text">视频切片处理时长，默认2分钟</div>
+                                                   value="<?php echo htmlspecialchars($configMap['video_segment_duration'] ?? '60'); ?>">
+                                            <div class="form-text">录制完成后，每多少秒切一个片段，建议30-120秒</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">

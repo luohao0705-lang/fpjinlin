@@ -38,6 +38,13 @@ class VideoProcessor {
     }
     
     /**
+     * 获取配置信息
+     */
+    public function getConfig() {
+        return $this->config;
+    }
+    
+    /**
      * 初始化阿里云OSS客户端
      */
     private function initOssClient() {
