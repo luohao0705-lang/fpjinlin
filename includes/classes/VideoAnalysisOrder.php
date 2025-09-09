@@ -137,8 +137,14 @@ class VideoAnalysisOrder {
      * 添加到处理队列
      */
     private function addToProcessingQueue($orderId) {
+        // 获取视频文件列表，为每个视频文件创建录制任务
+        $videoFiles = $this->db->fetchAll(
+            "SELECT id FROM video_files WHERE order_id = ? ORDER BY video_type, video_index",
+            [$orderId]
+        );
+        
         $tasks = [
-            ['type' => 'download', 'priority' => 10],
+            ['type' => 'record', 'priority' => 10],
             ['type' => 'transcode', 'priority' => 9],
             ['type' => 'segment', 'priority' => 8],
             ['type' => 'asr', 'priority' => 7],
@@ -147,10 +153,21 @@ class VideoAnalysisOrder {
         ];
         
         foreach ($tasks as $task) {
-            $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())",
-                [$orderId, $task['type'], json_encode([]), $task['priority']]
-            );
+            if ($task['type'] === 'record') {
+                // 为每个视频文件创建录制任务
+                foreach ($videoFiles as $videoFile) {
+                    $this->db->insert(
+                        "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())",
+                        [$orderId, $task['type'], json_encode(['video_file_id' => $videoFile['id']]), $task['priority']]
+                    );
+                }
+            } else {
+                // 其他任务只创建一次
+                $this->db->insert(
+                    "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())",
+                    [$orderId, $task['type'], json_encode([]), $task['priority']]
+                );
+            }
         }
     }
     
