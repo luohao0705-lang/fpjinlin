@@ -62,7 +62,8 @@ class VideoAnalysisOrder {
         } catch (Exception $e) {
             $this->db->rollback();
             error_log("创建视频分析订单异常: " . $e->getMessage());
-            throw $e;
+            error_log("错误堆栈: " . $e->getTraceAsString());
+            throw new Exception("数据库操作失败: " . $e->getMessage(), 0, $e);
         }
     }
     

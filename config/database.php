@@ -77,7 +77,8 @@ class Database {
             return $stmt;
         } catch (PDOException $e) {
             error_log("SQL执行失败: " . $e->getMessage() . " SQL: " . $sql);
-            throw new Exception("数据库操作失败");
+            error_log("参数: " . json_encode($params));
+            throw new Exception("数据库操作失败: " . $e->getMessage());
         }
     }
     

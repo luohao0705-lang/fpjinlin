@@ -3,6 +3,11 @@
  * 创建视频分析订单API
  * 复盘精灵系统 - 视频驱动分析
  */
+
+// 开启错误显示
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once '../config/config.php';
 require_once '../config/database.php';
 require_once '../includes/classes/VideoAnalysisOrder.php';
@@ -79,15 +84,27 @@ try {
     error_log("错误堆栈: " . $e->getTraceAsString());
     
     // 返回更详细的错误信息用于调试
+    $debugInfo = [
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'message' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
+    ];
+    
+    // 如果是数据库相关错误，添加更多信息
+    if (strpos($e->getMessage(), '数据库') !== false) {
+        $debugInfo['database_info'] = [
+            'host' => EnvLoader::get('DB_HOST', '127.0.0.1'),
+            'database' => EnvLoader::get('DB_NAME', 'fupan_jingling'),
+            'user' => EnvLoader::get('DB_USER', 'fupan_jingling')
+        ];
+    }
+    
     jsonResponse([
         'success' => false,
         'message' => '创建失败: ' . $e->getMessage(),
         'error_code' => 500,
-        'debug' => [
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
-        ]
+        'debug' => $debugInfo
     ], 200);
 }
 
