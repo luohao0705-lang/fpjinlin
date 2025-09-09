@@ -49,7 +49,7 @@ class VideoAnalysisOrder {
             $this->createVideoFileRecords($orderId, $selfVideoLink, $competitorVideoLinks);
             
             // 扣除精灵币
-            $userObj->deductCoins($userId, $costCoins, '视频分析订单消费', 'video_analysis', $orderId, false);
+            $userObj->deductCoins($userId, $costCoins, '视频分析订单消费', 'video_analysis', null, false);
             
             $this->db->commit();
             
