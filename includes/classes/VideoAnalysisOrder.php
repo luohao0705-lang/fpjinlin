@@ -349,8 +349,8 @@ class VideoAnalysisOrder {
             // 创建处理任务
             $this->createProcessingTasks($orderId);
             
-            // 立即开始处理第一个任务（录制任务）
-            $this->startProcessingTasks($orderId);
+            // 暂时不立即处理任务，避免在事务中执行复杂操作
+            // $this->startProcessingTasks($orderId);
             
             $this->db->commit();
             
