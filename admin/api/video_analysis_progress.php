@@ -6,6 +6,11 @@
 require_once '../../config/config.php';
 require_once '../../config/database.php';
 
+// 启动session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // 启用错误报告
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -46,6 +51,9 @@ try {
         "SELECT * FROM video_processing_queue WHERE order_id = ? ORDER BY created_at DESC",
         [$orderId]
     );
+    
+    // 调试信息
+    error_log("视频分析进度API调试 - 订单ID: {$orderId}, 视频文件数: " . count($videoFiles) . ", 任务数: " . count($processingTasks));
     
     // 计算总体进度
     $totalTasks = count($processingTasks);
