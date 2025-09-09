@@ -5,6 +5,9 @@
  */
 require_once '../config/config.php';
 require_once '../config/database.php';
+require_once '../includes/classes/VideoAnalysisOrder.php';
+require_once '../includes/classes/User.php';
+require_once '../includes/classes/OperationLog.php';
 
 header('Content-Type: application/json; charset=utf-8');
 

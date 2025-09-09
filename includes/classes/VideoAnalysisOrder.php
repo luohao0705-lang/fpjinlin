@@ -80,7 +80,7 @@ class VideoAnalysisOrder {
         foreach ($competitorVideoLinks as $index => $link) {
             $this->db->insert(
                 "INSERT INTO video_files (order_id, video_type, video_index, original_url, status, created_at) VALUES (?, 'competitor', ?, ?, 'pending', NOW())",
-                [$orderId, $index + 1, $link]
+                [$orderId, 'competitor', $index + 1, $link]
             );
         }
     }
