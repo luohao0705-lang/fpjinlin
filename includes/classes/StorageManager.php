@@ -270,15 +270,5 @@ class StorageManager {
         
         return base64_encode(hash_hmac('sha1', $stringToSign, $this->config['oss_secret_key'], true));
     }
-    
-    /**
-     * 检查OSS是否配置
-     */
-    private function isOssConfigured() {
-        return !empty($this->config['oss_bucket']) && 
-               !empty($this->config['oss_endpoint']) && 
-               !empty($this->config['oss_access_key']) && 
-               !empty($this->config['oss_secret_key']);
-    }
 }
 ?>
