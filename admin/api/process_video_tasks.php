@@ -57,34 +57,46 @@ try {
             // 模拟任务处理（实际项目中应该调用相应的处理类）
             $taskData = json_decode($task['task_data'], true);
             
-            // 根据任务类型进行简单处理
+            // 根据任务类型进行处理
             switch ($task['task_type']) {
-                case 'download':
-                    // 模拟下载完成
-                    $db->query(
-                        "UPDATE video_files SET status = 'completed' WHERE id = ?",
+                case 'record':
+                    // 录制FLV流
+                    $videoFile = $db->fetchOne(
+                        "SELECT * FROM video_files WHERE id = ?",
                         [$taskData['video_file_id']]
                     );
+                    
+                    if ($videoFile && $videoFile['flv_url']) {
+                        require_once '../../includes/classes/VideoProcessor.php';
+                        $videoProcessor = new VideoProcessor();
+                        $videoProcessor->recordVideo($videoFile['id'], $videoFile['flv_url']);
+                    } else {
+                        throw new Exception('视频文件或FLV地址不存在');
+                    }
                     break;
+                    
                 case 'transcode':
-                    // 模拟转码完成
+                    // 转码处理
                     $db->query(
                         "UPDATE video_files SET status = 'completed' WHERE id = ?",
                         [$taskData['video_file_id']]
                     );
                     break;
+                    
                 case 'segment':
-                    // 模拟切片完成
+                    // 切片处理
                     $db->query(
                         "UPDATE video_files SET status = 'completed' WHERE id = ?",
                         [$taskData['video_file_id']]
                     );
                     break;
+                    
                 case 'asr':
-                    // 模拟语音识别完成
+                    // 语音识别处理
                     break;
+                    
                 case 'analysis':
-                    // 模拟分析完成
+                    // 视频分析处理
                     break;
             }
             

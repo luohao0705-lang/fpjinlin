@@ -58,7 +58,53 @@ class VideoProcessor {
     }
     
     /**
-     * 下载视频文件
+     * 录制FLV流视频
+     */
+    public function recordVideo($videoFileId, $flvUrl) {
+        try {
+            error_log("开始录制视频: {$flvUrl}");
+            
+            // 更新状态为录制中
+            $this->updateVideoFileStatus($videoFileId, 'recording');
+            
+            // 生成临时文件名
+            $tempFile = sys_get_temp_dir() . '/video_' . $videoFileId . '_' . time() . '.mp4';
+            
+            // 使用FFmpeg录制FLV流
+            $this->recordFlvStream($flvUrl, $tempFile);
+            
+            // 获取视频信息
+            $videoInfo = $this->getVideoInfo($tempFile);
+            
+            // 检查时长限制
+            if ($videoInfo['duration'] > $this->config['max_duration']) {
+                $videoInfo['duration'] = $this->config['max_duration'];
+            }
+            
+            // 上传到OSS
+            $ossKey = $this->uploadToOss($tempFile, "videos/{$videoFileId}/original.mp4");
+            
+            // 更新数据库
+            $this->db->query(
+                "UPDATE video_files SET oss_key = ?, file_size = ?, duration = ?, resolution = ?, status = 'completed' WHERE id = ?",
+                [$ossKey, filesize($tempFile), $videoInfo['duration'], $videoInfo['resolution'], $videoFileId]
+            );
+            
+            // 清理临时文件
+            unlink($tempFile);
+            
+            error_log("视频录制完成: {$videoFileId}");
+            return true;
+            
+        } catch (Exception $e) {
+            error_log("视频录制失败: {$videoFileId} - " . $e->getMessage());
+            $this->updateVideoFileStatus($videoFileId, 'failed', $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * 下载视频文件（保留原方法用于兼容）
      */
     public function downloadVideo($videoFileId, $flvUrl) {
         try {
@@ -352,5 +398,31 @@ class VideoProcessor {
         $params[] = $videoFileId;
         
         $this->db->query($sql, $params);
+    }
+    
+    /**
+     * 录制FLV流
+     */
+    private function recordFlvStream($flvUrl, $outputFile) {
+        $maxDuration = $this->config['max_duration'];
+        
+        $command = sprintf(
+            'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+            escapeshellarg($flvUrl),
+            $maxDuration,
+            escapeshellarg($outputFile)
+        );
+        
+        $output = [];
+        $returnCode = 0;
+        exec($command . ' 2>&1', $output, $returnCode);
+        
+        if ($returnCode !== 0) {
+            throw new Exception('FFmpeg录制失败: ' . implode("\n", $output));
+        }
+        
+        if (!file_exists($outputFile) || filesize($outputFile) === 0) {
+            throw new Exception('录制文件生成失败');
+        }
     }
 }

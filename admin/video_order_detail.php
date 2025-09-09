@@ -413,9 +413,6 @@ function getApiQuota($service) {
                                                 </button>
                                             </form>
                                             
-                                            <button type="button" class="btn btn-warning" id="processTasksBtn">
-                                                <i class="fas fa-cogs me-2"></i>手动处理任务
-                                            </button>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -596,27 +593,6 @@ function getApiQuota($service) {
             $('#ai-usage-container').html(html);
         }
         
-        // 手动处理任务
-        $('#processTasksBtn').click(function() {
-            const btn = $(this);
-            const originalText = btn.html();
-            
-            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>处理中...');
-            
-            $.get('api/process_video_tasks.php?order_id=<?php echo $orderId; ?>', function(response) {
-                if (response.success) {
-                    alert('任务处理完成：' + response.message);
-                    // 刷新进度
-                    loadProgress();
-                } else {
-                    alert('任务处理失败：' + response.message);
-                }
-            }).fail(function() {
-                alert('网络错误，请稍后重试');
-            }).always(function() {
-                btn.prop('disabled', false).html(originalText);
-            });
-        });
     </script>
 </body>
 </html>

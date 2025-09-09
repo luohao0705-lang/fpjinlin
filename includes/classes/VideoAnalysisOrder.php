@@ -32,9 +32,9 @@ class VideoAnalysisOrder {
             // 生成订单号
             $orderNo = 'VA' . date('YmdHis') . rand(1000, 9999);
             
-            // 创建订单
+            // 创建订单 - 初始状态为reviewing，等待管理员配置FLV地址
             $orderId = $this->db->insert(
-                "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, competitor_video_links, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())",
+                "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, competitor_video_links, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'reviewing', NOW())",
                 [
                     $userId, 
                     $orderNo, 
@@ -309,7 +309,7 @@ class VideoAnalysisOrder {
                 throw new Exception('订单不存在');
             }
             
-            if (!in_array($order['status'], ['pending', 'reviewing', 'processing', 'failed'])) {
+            if (!in_array($order['status'], ['reviewing', 'processing', 'failed'])) {
                 throw new Exception('订单状态不允许启动分析');
             }
             
@@ -323,8 +323,11 @@ class VideoAnalysisOrder {
                 throw new Exception('请先填写所有视频的FLV地址');
             }
             
-            // 更新订单状态为处理中
-            $this->updateOrderStatus($orderId, 'processing');
+            // 如果状态是reviewing，说明管理员刚配置完FLV地址，可以开始分析
+            if ($order['status'] === 'reviewing') {
+                // 更新订单状态为处理中
+                $this->updateOrderStatus($orderId, 'processing');
+            }
             
             // 创建处理任务
             $this->createProcessingTasks($orderId);
@@ -397,26 +400,27 @@ class VideoAnalysisOrder {
             [$orderId]
         );
         
+        // 为每个视频文件创建处理任务
         foreach ($videoFiles as $videoFile) {
-            // 下载任务
+            // 1. 录制任务 - 从FLV流录制视频
             $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'download', ?, 1, 'pending')",
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'record', ?, 1, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 转码任务
+            // 2. 转码任务 - 转码为统一格式
             $this->db->insert(
                 "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'transcode', ?, 2, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 切片任务
+            // 3. 切片任务 - 按配置时长切片
             $this->db->insert(
                 "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'segment', ?, 3, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 语音识别任务
+            // 4. 语音识别任务 - 对每个切片进行ASR
             $this->db->insert(
                 "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'asr', ?, 4, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
