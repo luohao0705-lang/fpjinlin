@@ -645,14 +645,15 @@ class VideoProcessor {
             }
             
             fclose($pipes[1]);
+            
+            // 在关闭stderr之前先读取内容
+            $stderr = stream_get_contents($pipes[2]);
             fclose($pipes[2]);
             
             $returnCode = proc_close($process);
             
             if ($returnCode !== 0) {
-                // 获取stderr输出以获取详细错误信息
-                $stderr = stream_get_contents($pipes[2]);
-                fclose($pipes[2]);
+                // 使用之前读取的stderr内容
                 
                 $errorMsg = 'FFmpeg录制失败，返回码: ' . $returnCode;
                 if ($stderr) {
