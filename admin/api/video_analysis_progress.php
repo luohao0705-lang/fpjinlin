@@ -6,6 +6,10 @@
 require_once '../../config/config.php';
 require_once '../../config/database.php';
 
+// 启用错误报告
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -51,7 +55,7 @@ try {
     $failedTasks = count(array_filter($processingTasks, function($task) {
         return $task['status'] === 'failed';
     }));
-    $processingTasks = count(array_filter($processingTasks, function($task) {
+    $processingCount = count(array_filter($processingTasks, function($task) {
         return $task['status'] === 'processing';
     }));
     
@@ -66,12 +70,12 @@ try {
     $html .= '<div class="row text-center">';
     $html .= '<div class="col-3"><small class="text-muted">总任务</small><br><strong>' . $totalTasks . '</strong></div>';
     $html .= '<div class="col-3"><small class="text-success">已完成</small><br><strong>' . $completedTasks . '</strong></div>';
-    $html .= '<div class="col-3"><small class="text-primary">处理中</small><br><strong>' . $processingTasks . '</strong></div>';
+    $html .= '<div class="col-3"><small class="text-primary">处理中</small><br><strong>' . $processingCount . '</strong></div>';
     $html .= '<div class="col-3"><small class="text-danger">失败</small><br><strong>' . $failedTasks . '</strong></div>';
     $html .= '</div>';
     
     // 显示当前处理的任务
-    if ($processingTasks > 0) {
+    if ($processingCount > 0) {
         $currentTask = array_filter($processingTasks, function($task) {
             return $task['status'] === 'processing';
         });
@@ -135,15 +139,19 @@ try {
         'data' => [
             'total_tasks' => $totalTasks,
             'completed_tasks' => $completedTasks,
-            'processing_tasks' => $processingTasks,
+            'processing_tasks' => $processingCount,
             'failed_tasks' => $failedTasks
         ]
     ]);
     
 } catch (Exception $e) {
+    error_log("视频分析进度API错误: " . $e->getMessage() . " 文件: " . $e->getFile() . " 行: " . $e->getLine());
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
     ]);
 }
 ?>
