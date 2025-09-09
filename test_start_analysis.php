@@ -4,6 +4,29 @@
  */
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
+// 捕获所有错误
+set_error_handler(function($severity, $message, $file, $line) {
+    echo "<div style='color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border: 1px solid red;'>";
+    echo "<strong>PHP错误:</strong> {$message}<br>";
+    echo "<strong>文件:</strong> {$file}<br>";
+    echo "<strong>行号:</strong> {$line}<br>";
+    echo "</div>";
+    return true;
+});
+
+// 捕获致命错误
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        echo "<div style='color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border: 1px solid red;'>";
+        echo "<strong>致命错误:</strong> {$error['message']}<br>";
+        echo "<strong>文件:</strong> {$error['file']}<br>";
+        echo "<strong>行号:</strong> {$error['line']}<br>";
+        echo "</div>";
+    }
+});
 
 require_once 'config/config.php';
 require_once 'config/database.php';
