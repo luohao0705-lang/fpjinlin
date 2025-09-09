@@ -15,7 +15,8 @@ class StorageManager {
             'oss_secret_key' => getSystemConfig('oss_secret_key', ''),
         ];
         
-        $this->localBasePath = dirname(__DIR__, 2) . '/storage';
+        // 使用系统临时目录作为存储基础路径，避免权限问题
+        $this->localBasePath = sys_get_temp_dir() . '/video_analysis_storage';
         
         // 验证OSS配置
         if (!$this->isOssConfigured()) {
@@ -24,10 +25,20 @@ class StorageManager {
         
         // 确保本地存储路径存在且可写
         if (!is_dir($this->localBasePath)) {
-            if (!mkdir($this->localBasePath, 0777, true)) {
+            if (!mkdir($this->localBasePath, 0755, true)) {
                 error_log("StorageManager: Failed to create local storage base path: " . $this->localBasePath);
-                throw new Exception("Storage system initialization failed: Local storage path cannot be created.");
+                // 如果创建失败，尝试使用更简单的路径
+                $this->localBasePath = sys_get_temp_dir();
+                error_log("StorageManager: Falling back to system temp directory: " . $this->localBasePath);
             }
+        }
+        
+        // 验证路径是否可写
+        if (!is_writable($this->localBasePath)) {
+            error_log("StorageManager: Local storage path is not writable: " . $this->localBasePath);
+            // 如果不可写，使用系统临时目录
+            $this->localBasePath = sys_get_temp_dir();
+            error_log("StorageManager: Using system temp directory as fallback: " . $this->localBasePath);
         }
     }
     
