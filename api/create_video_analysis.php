@@ -78,10 +78,16 @@ try {
     error_log("创建视频分析订单失败: " . $e->getMessage());
     error_log("错误堆栈: " . $e->getTraceAsString());
     
+    // 返回更详细的错误信息用于调试
     jsonResponse([
         'success' => false,
-        'message' => $e->getMessage(),
-        'error_code' => 500
+        'message' => '创建失败: ' . $e->getMessage(),
+        'error_code' => 500,
+        'debug' => [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]
     ], 200);
 }
 
