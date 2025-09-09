@@ -349,8 +349,8 @@ class VideoAnalysisOrder {
             // 创建处理任务
             $this->createProcessingTasks($orderId);
             
-            // 暂时不立即处理任务，避免在事务中执行复杂操作
-            // $this->startProcessingTasks($orderId);
+            // 立即开始处理任务
+            $this->startProcessingTasks($orderId);
             
             $this->db->commit();
             
@@ -422,40 +422,40 @@ class VideoAnalysisOrder {
         
         // 为每个视频文件创建处理任务
         foreach ($videoFiles as $videoFile) {
-            // 1. 录制任务 - 从FLV流录制视频
+            // 1. 录制任务 - 最高优先级 (1000)
             $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'record', ?, 1, 'pending')",
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'record', ?, 1000, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 2. 转码任务 - 转码为统一格式
+            // 2. 转码任务 (800)
             $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'transcode', ?, 2, 'pending')",
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'transcode', ?, 800, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 3. 切片任务 - 按配置时长切片
+            // 3. 切片任务 (600)
             $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'segment', ?, 3, 'pending')",
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'segment', ?, 600, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
             
-            // 4. 语音识别任务 - 对每个切片进行ASR
+            // 4. 语音识别任务 (400)
             $this->db->insert(
-                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'asr', ?, 4, 'pending')",
+                "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'asr', ?, 400, 'pending')",
                 [$orderId, json_encode(['video_file_id' => $videoFile['id']])]
             );
         }
         
-        // 视频理解任务
+        // 5. AI分析任务 (200)
         $this->db->insert(
-            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'analysis', ?, 5, 'pending')",
+            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'analysis', ?, 200, 'pending')",
             [$orderId, json_encode(['order_id' => $orderId])]
         );
         
-        // 报告生成任务
+        // 6. 报告生成任务 - 最低优先级 (100)
         $this->db->insert(
-            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'report', ?, 6, 'pending')",
+            "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'report', ?, 100, 'pending')",
             [$orderId, json_encode(['order_id' => $orderId])]
         );
     }

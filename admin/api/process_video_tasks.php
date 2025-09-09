@@ -44,9 +44,12 @@ try {
     }
     
     $processed = 0;
+    $maxTasks = 1; // 一次只处理一个任务，确保按顺序执行
     
-    foreach ($tasks as $task) {
-        try {
+    // 只处理第一个任务（优先级最高的）
+    $task = $tasks[0];
+    
+    try {
             // 更新任务状态为处理中
             $db->query(
                 "UPDATE video_processing_queue SET status = 'processing', started_at = NOW() WHERE id = ?",
@@ -166,13 +169,12 @@ try {
             
             $processed++;
             
-        } catch (Exception $e) {
-            // 更新任务状态为失败
-            $db->query(
-                "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
-                [$e->getMessage(), $task['id']]
-            );
-        }
+    } catch (Exception $e) {
+        // 更新任务状态为失败
+        $db->query(
+            "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
+            [$e->getMessage(), $task['id']]
+        );
     }
     
     echo json_encode([

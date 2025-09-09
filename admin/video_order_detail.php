@@ -573,7 +573,7 @@ function getApiQuota($service) {
     <script>
         // 自动刷新进度
         function loadProgress() {
-            $.get('api/video_analysis_progress.php?order_id=<?php echo $orderId; ?>', function(data) {
+            $.get('admin/api/video_analysis_progress.php?order_id=<?php echo $orderId; ?>', function(data) {
                 if (data.success) {
                     $('#progressContainer').html(data.html);
                 }
@@ -582,7 +582,7 @@ function getApiQuota($service) {
         
         // 加载录制进度
         function loadRecordingProgress() {
-            $.get('api/recording_progress.php?order_id=<?php echo $orderId; ?>', function(data) {
+            $.get('admin/api/recording_progress.php?order_id=<?php echo $orderId; ?>', function(data) {
                 if (data.success) {
                     displayRecordingProgress(data.data);
                 }
@@ -752,7 +752,7 @@ function getApiQuota($service) {
             // 显示处理状态
             showProcessingStatus('开始处理任务...');
             
-            $.get('api/process_video_tasks.php?order_id=<?php echo $orderId; ?>', function(response) {
+            $.get('admin/api/process_video_tasks.php?order_id=<?php echo $orderId; ?>', function(response) {
                 if (response.success) {
                     showProcessingStatus('✅ 任务处理完成：' + response.message + '，处理了 ' + response.processed + ' 个任务');
                     // 刷新进度
@@ -778,7 +778,7 @@ function getApiQuota($service) {
             
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>检查中...');
             
-            $.get('api/system_check.php', function(response) {
+            $.get('admin/api/system_check.php', function(response) {
                 if (response.success) {
                     showSystemCheckResults(response.data);
                 } else {
@@ -843,7 +843,7 @@ function getApiQuota($service) {
         
         // 加载任务监控
         function loadTaskMonitor() {
-            $.get('api/task_monitor.php?order_id=<?php echo $orderId; ?>', function(response) {
+            $.get('admin/api/task_monitor.php?order_id=<?php echo $orderId; ?>', function(response) {
                 if (response.success) {
                     displayTaskMonitor(response.data);
                 }

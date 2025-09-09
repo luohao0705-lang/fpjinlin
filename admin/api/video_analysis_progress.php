@@ -18,11 +18,9 @@ ini_set('display_errors', 1);
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    // 检查管理员登录 - 临时跳过验证用于调试
+    // 检查管理员登录
     if (!isset($_SESSION['admin_id'])) {
-        // 临时设置一个admin_id用于测试
-        $_SESSION['admin_id'] = 1;
-        error_log("临时设置admin_id = 1用于调试");
+        throw new Exception('请先登录');
     }
     
     $orderId = intval($_GET['order_id'] ?? 0);

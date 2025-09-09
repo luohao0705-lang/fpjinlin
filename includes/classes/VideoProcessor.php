@@ -697,14 +697,17 @@ class VideoProcessor {
      * 格式化文件大小
      */
     private function formatFileSize($bytes) {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $unitIndex = 0;
-        
-        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
-            $bytes /= 1024;
-            $unitIndex++;
+        if (!function_exists('formatFileSize')) {
+            $units = ['B', 'KB', 'MB', 'GB'];
+            $unitIndex = 0;
+            
+            while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
+                $bytes /= 1024;
+                $unitIndex++;
+            }
+            
+            return round($bytes, 2) . ' ' . $units[$unitIndex];
         }
-        
-        return round($bytes, 2) . ' ' . $units[$unitIndex];
+        return formatFileSize($bytes);
     }
 }

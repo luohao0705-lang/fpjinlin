@@ -30,21 +30,21 @@ class SmsService {
         if (empty($this->accessKey) || empty($this->accessSecret) || empty($this->signName) || empty($this->templateCode)) {
             $configs = $this->db->fetchAll(
                 "SELECT config_key, config_value FROM system_configs WHERE config_key IN (?, ?, ?, ?)",
-                ['sms_access_key', 'sms_access_secret', 'sms_sign_name', 'sms_template_register']
+                ['aliyun_sms_access_key', 'aliyun_sms_access_secret', 'aliyun_sms_sign_name', 'aliyun_sms_template_code']
             );
             
             foreach ($configs as $config) {
                 switch ($config['config_key']) {
-                    case 'sms_access_key':
+                    case 'aliyun_sms_access_key':
                         if (empty($this->accessKey)) $this->accessKey = $config['config_value'];
                         break;
-                    case 'sms_access_secret':
+                    case 'aliyun_sms_access_secret':
                         if (empty($this->accessSecret)) $this->accessSecret = $config['config_value'];
                         break;
-                    case 'sms_sign_name':
+                    case 'aliyun_sms_sign_name':
                         if (empty($this->signName)) $this->signName = $config['config_value'];
                         break;
-                    case 'sms_template_register':
+                    case 'aliyun_sms_template_code':
                         if (empty($this->templateCode)) $this->templateCode = $config['config_value'];
                         break;
                 }
