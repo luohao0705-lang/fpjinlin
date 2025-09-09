@@ -27,8 +27,27 @@ if ($_POST) {
         $message = '请输入FLV地址';
     } else {
         try {
-            require_once 'includes/classes/VideoProcessor.php';
-            $videoProcessor = new VideoProcessor();
+            // 首先检查FFmpeg是否可用
+            $ffmpegCheck = [];
+            $ffmpegReturnCode = 0;
+            exec('ffmpeg -version 2>&1', $ffmpegCheck, $ffmpegReturnCode);
+            
+            if ($ffmpegReturnCode !== 0) {
+                throw new Exception('FFmpeg不可用，返回码: ' . $ffmpegReturnCode);
+            }
+            
+            // 检查FLV地址是否可访问
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'method' => 'HEAD'
+                ]
+            ]);
+            
+            $headers = @get_headers($flvUrl, 1, $context);
+            if (!$headers || strpos($headers[0], '200') === false) {
+                throw new Exception('FLV地址不可访问: ' . $flvUrl);
+            }
             
             // 测试录制
             $tempFile = sys_get_temp_dir() . '/test_recording_' . time() . '.mp4';
@@ -41,23 +60,45 @@ if ($_POST) {
                 escapeshellarg($tempFile)
             );
             
+            $testResult = "🔧 执行命令: {$command}\n\n";
+            
             $output = [];
             $returnCode = 0;
             exec($command . ' 2>&1', $output, $returnCode);
             
+            $testResult .= "📊 执行结果:\n";
+            $testResult .= "返回码: {$returnCode}\n";
+            $testResult .= "输出:\n" . implode("\n", $output) . "\n\n";
+            
             if ($returnCode === 0 && file_exists($tempFile) && filesize($tempFile) > 0) {
                 $fileSize = filesize($tempFile);
-                $testResult = "✅ 录制成功！\n";
+                $testResult .= "✅ 录制成功！\n";
                 $testResult .= "文件大小: " . round($fileSize / 1024 / 1024, 2) . " MB\n";
                 $testResult .= "文件路径: {$tempFile}\n";
-                $testResult .= "FFmpeg输出:\n" . implode("\n", array_slice($output, 0, 10));
+                
+                // 获取视频信息
+                $infoOutput = [];
+                $infoReturnCode = 0;
+                exec("ffprobe -v quiet -print_format json -show_format -show_streams " . escapeshellarg($tempFile) . " 2>&1", $infoOutput, $infoReturnCode);
+                
+                if ($infoReturnCode === 0) {
+                    $videoInfo = json_decode(implode('', $infoOutput), true);
+                    if ($videoInfo) {
+                        $testResult .= "视频时长: " . ($videoInfo['format']['duration'] ?? '未知') . " 秒\n";
+                        $testResult .= "视频编码: " . ($videoInfo['streams'][0]['codec_name'] ?? '未知') . "\n";
+                        $testResult .= "分辨率: " . ($videoInfo['streams'][0]['width'] ?? '未知') . "x" . ($videoInfo['streams'][0]['height'] ?? '未知') . "\n";
+                    }
+                }
                 
                 // 清理测试文件
                 unlink($tempFile);
             } else {
-                $testResult = "❌ 录制失败！\n";
-                $testResult .= "返回码: {$returnCode}\n";
-                $testResult .= "FFmpeg输出:\n" . implode("\n", $output);
+                $testResult .= "❌ 录制失败！\n";
+                if (!file_exists($tempFile)) {
+                    $testResult .= "错误: 输出文件未生成\n";
+                } elseif (filesize($tempFile) === 0) {
+                    $testResult .= "错误: 输出文件为空\n";
+                }
             }
             
         } catch (Exception $e) {
@@ -138,15 +179,18 @@ if ($_POST) {
                                     $ffmpegOutput = [];
                                     $ffmpegReturnCode = 0;
                                     $ffmpegFound = false;
+                                    $ffmpegError = '';
                                     
                                     // 尝试不同的FFmpeg命令（Linux优先）
                                     $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
                                     
                                     foreach ($ffmpegCommands as $cmd) {
-                                        exec($cmd . ' -version 2>&1', $ffmpegOutput, $ffmpegReturnCode);
-                                        if ($ffmpegReturnCode === 0) {
+                                        exec($cmd . ' -version 2>&1', $ffmpegOutput, $returnCode);
+                                        if ($returnCode === 0) {
                                             $ffmpegFound = true;
                                             break;
+                                        } else {
+                                            $ffmpegError .= "命令: {$cmd}, 返回码: {$returnCode}, 输出: " . implode(' ', $ffmpegOutput) . "\n";
                                         }
                                     }
                                     
@@ -156,7 +200,25 @@ if ($_POST) {
                                     <?php else: ?>
                                         <span class="badge bg-danger ms-2">未安装</span>
                                         <small class="text-muted">请安装FFmpeg并确保在PATH中</small>
+                                        <br><small class="text-danger">错误详情: <?php echo htmlspecialchars($ffmpegError); ?></small>
                                     <?php endif; ?>
+                                </li>
+                                
+                                <li class="list-group-item">
+                                    <strong>系统诊断:</strong>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <strong>PATH环境变量:</strong> <?php echo htmlspecialchars(getenv('PATH')); ?><br>
+                                            <strong>当前工作目录:</strong> <?php echo htmlspecialchars(getcwd()); ?><br>
+                                            <strong>PHP版本:</strong> <?php echo PHP_VERSION; ?><br>
+                                            <strong>禁用函数:</strong> <?php echo ini_get('disable_functions') ?: '无'; ?><br>
+                                            <strong>shell_exec测试:</strong> 
+                                            <?php 
+                                            $shellResult = shell_exec('whoami 2>&1');
+                                            echo $shellResult ? '正常' : '失败';
+                                            ?>
+                                        </small>
+                                    </div>
                                 </li>
                             </ul>
                         </div>
