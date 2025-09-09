@@ -116,14 +116,18 @@ try {
     if ($ffmpegFound) {
         echo "<p>开始测试录制...</p>";
         
-        // 直接测试FFmpeg命令
-        $maxDuration = 10; // 只录制10秒用于测试
+        // 使用一个公开的测试视频源，而不是可能过期的FLV地址
+        $testVideoUrl = 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4';
+        $maxDuration = 5; // 只录制5秒用于测试
         $outputFile = sys_get_temp_dir() . '/test_recording_' . time() . '.mp4';
         
+        echo "<p>使用测试视频源: " . htmlspecialchars($testVideoUrl) . "</p>";
+        echo "<p>原始FLV地址（可能已过期）: " . htmlspecialchars($flvUrl) . "</p>";
+        
         $command = sprintf(
-            '%s -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+            '%s -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
             escapeshellarg($ffmpegLocation),
-            escapeshellarg($flvUrl),
+            escapeshellarg($testVideoUrl),
             $maxDuration,
             escapeshellarg($outputFile)
         );
@@ -156,14 +160,16 @@ try {
         echo "<p>❌ 无法测试录制，FFmpeg未找到</p>";
     }
     
-    // 辅助函数
-    function formatFileSize($bytes) {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $bytes = max($bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-        $pow = min($pow, count($units) - 1);
-        $bytes /= pow(1024, $pow);
-        return round($bytes, 2) . ' ' . $units[$pow];
+    // 辅助函数（检查是否已存在）
+    if (!function_exists('formatFileSize')) {
+        function formatFileSize($bytes) {
+            $units = ['B', 'KB', 'MB', 'GB'];
+            $bytes = max($bytes, 0);
+            $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+            $pow = min($pow, count($units) - 1);
+            $bytes /= pow(1024, $pow);
+            return round($bytes, 2) . ' ' . $units[$pow];
+        }
     }
     
 } catch (Exception $e) {
