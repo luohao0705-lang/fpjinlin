@@ -326,7 +326,7 @@ class VideoAnalysisOrder {
                 throw new Exception('订单不存在');
             }
             
-            if (!in_array($order['status'], ['reviewing', 'processing', 'failed'])) {
+            if (!in_array($order['status'], ['reviewing', 'processing', 'failed', 'stopped'])) {
                 throw new Exception('订单状态不允许启动分析');
             }
             
@@ -340,8 +340,8 @@ class VideoAnalysisOrder {
                 throw new Exception('请先填写所有视频的FLV地址');
             }
             
-            // 如果状态是reviewing，说明管理员刚配置完FLV地址，可以开始分析
-            if ($order['status'] === 'reviewing') {
+            // 如果状态是reviewing或stopped，可以开始分析
+            if (in_array($order['status'], ['reviewing', 'stopped'])) {
                 // 更新订单状态为处理中
                 $this->updateOrderStatus($orderId, 'processing');
             }
@@ -372,26 +372,54 @@ class VideoAnalysisOrder {
         $this->db->beginTransaction();
         
         try {
-            // 更新订单状态为失败
-            $this->updateOrderStatus($orderId, 'failed', null, null, null, '管理员手动停止');
+            // 更新订单状态为已停止（可以重新启动）
+            $this->updateOrderStatus($orderId, 'stopped', null, null, null, '管理员手动停止');
             
-            // 停止所有处理中的任务
+            // 停止所有处理中的任务，但保持为pending状态以便重新启动
             $this->db->query(
-                "UPDATE video_processing_queue SET status = 'failed', error_message = '管理员手动停止' 
+                "UPDATE video_processing_queue SET status = 'pending', error_message = '管理员手动停止，可重新启动' 
                  WHERE order_id = ? AND status IN ('pending', 'processing')",
                 [$orderId]
             );
+            
+            // 终止正在运行的FFmpeg进程
+            $this->terminateFFmpegProcesses($orderId);
             
             $this->db->commit();
             
             return [
                 'success' => true,
-                'message' => '分析已停止'
+                'message' => '分析已停止，可以重新启动'
             ];
             
         } catch (Exception $e) {
             $this->db->rollback();
             throw $e;
+        }
+    }
+    
+    /**
+     * 终止FFmpeg进程
+     */
+    private function terminateFFmpegProcesses($orderId) {
+        try {
+            // 查找相关的FFmpeg进程
+            $output = [];
+            exec("ps aux | grep ffmpeg | grep -v grep", $output);
+            
+            foreach ($output as $line) {
+                if (strpos($line, "video_") !== false) {
+                    // 提取进程ID
+                    preg_match('/\s+(\d+)\s+/', $line, $matches);
+                    if (isset($matches[1])) {
+                        $pid = $matches[1];
+                        exec("kill -TERM {$pid} 2>/dev/null");
+                        error_log("终止FFmpeg进程: {$pid}");
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log("终止FFmpeg进程失败: " . $e->getMessage());
         }
     }
     
@@ -406,10 +434,10 @@ class VideoAnalysisOrder {
         )['count'];
         
         if ($existingTasks > 0) {
-            // 如果已有任务，重置失败的任务为待处理
+            // 如果已有任务，重置失败和停止的任务为待处理
             $this->db->query(
-                "UPDATE video_processing_queue SET status = 'pending', error_message = NULL 
-                 WHERE order_id = ? AND status = 'failed'",
+                "UPDATE video_processing_queue SET status = 'pending', error_message = NULL, retry_count = 0
+                 WHERE order_id = ? AND status IN ('failed', 'stopped')",
                 [$orderId]
             );
             return;
@@ -464,8 +492,382 @@ class VideoAnalysisOrder {
      * 开始处理任务
      */
     private function startProcessingTasks($orderId) {
-        // 获取第一个待处理任务
-        $firstTask = $this->db->fetchOne(
+        // 从系统配置获取并发数量
+        $maxConcurrent = $this->getSystemConfig('max_concurrent_processing', 2);
+        
+        // 获取待处理的录制任务
+        $recordTasks = $this->db->fetchAll(
+            "SELECT * FROM video_processing_queue 
+             WHERE order_id = ? AND status = 'pending' AND task_type = 'record'
+             ORDER BY priority DESC, created_at ASC
+             LIMIT ?",
+            [$orderId, $maxConcurrent]
+        );
+        
+        if (!empty($recordTasks)) {
+            // 分批处理录制任务
+            foreach ($recordTasks as $task) {
+                $this->processTaskWithRetry($task);
+            }
+        }
+    }
+    
+    /**
+     * 带重试机制的任务处理
+     */
+    private function processTaskWithRetry($task) {
+        $maxRetries = 3;
+        $retryCount = 0;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                // 更新任务状态为处理中
+                $this->db->query(
+                    "UPDATE video_processing_queue SET status = 'processing', started_at = NOW(), retry_count = ? WHERE id = ?",
+                    [$retryCount, $task['id']]
+                );
+                
+                // 执行任务
+                $this->executeTaskWithDiagnostics($task);
+                
+                // 任务成功，跳出重试循环
+                break;
+                
+            } catch (Exception $e) {
+                $retryCount++;
+                $errorMsg = $e->getMessage();
+                
+                // 记录详细错误信息
+                $this->logTaskError($task, $errorMsg, $retryCount, $maxRetries);
+                
+                if ($retryCount >= $maxRetries) {
+                    // 达到最大重试次数，标记为失败
+                    $this->db->query(
+                        "UPDATE video_processing_queue SET status = 'failed', error_message = ?, completed_at = NOW() WHERE id = ?",
+                        ["重试{$maxRetries}次后仍然失败: {$errorMsg}", $task['id']]
+                    );
+                    break;
+                } else {
+                    // 等待一段时间后重试
+                    sleep(pow(2, $retryCount)); // 指数退避：2, 4, 8秒
+                }
+            }
+        }
+    }
+    
+    /**
+     * 记录任务错误详情
+     */
+    private function logTaskError($task, $errorMsg, $retryCount, $maxRetries) {
+        $diagnostics = [
+            'task_id' => $task['id'],
+            'task_type' => $task['task_type'],
+            'error' => $errorMsg,
+            'retry_count' => $retryCount,
+            'max_retries' => $maxRetries,
+            'timestamp' => date('Y-m-d H:i:s'),
+            'memory_usage' => memory_get_usage(true),
+            'cpu_load' => sys_getloadavg()[0] ?? 'unknown'
+        ];
+        
+        error_log("❌ 任务错误诊断: " . json_encode($diagnostics, JSON_UNESCAPED_UNICODE));
+        
+        // 更新任务错误信息
+        $this->db->query(
+            "UPDATE video_processing_queue SET error_message = ? WHERE id = ?",
+            ["重试{$retryCount}/{$maxRetries}: {$errorMsg}", $task['id']]
+        );
+    }
+    
+    /**
+     * 异步处理任务（用于并发录制）
+     */
+    private function processTaskAsync($task) {
+        // 更新任务状态为处理中
+        $this->db->query(
+            "UPDATE video_processing_queue SET status = 'processing', started_at = NOW() WHERE id = ?",
+            [$task['id']]
+        );
+        
+        // 在后台执行任务
+        $this->executeTaskInBackground($task);
+    }
+    
+    /**
+     * 带诊断的任务执行
+     */
+    private function executeTaskWithDiagnostics($task) {
+        $taskData = json_decode($task['task_data'], true);
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage(true);
+        
+        try {
+            // 记录任务开始信息
+            error_log("🚀 开始执行任务: {$task['task_type']} (ID: {$task['id']})");
+            
+            // 根据任务类型进行处理
+            switch ($task['task_type']) {
+                case 'record':
+                    $this->processRecordTaskWithDiagnostics($taskData, $task['id']);
+                    break;
+                case 'transcode':
+                    $this->processTranscodeTask($taskData);
+                    break;
+                case 'segment':
+                    $this->processSegmentTask($taskData);
+                    break;
+                case 'asr':
+                    $this->processAsrTask($taskData);
+                    break;
+                case 'analysis':
+                    $this->processAnalysisTask($taskData);
+                    break;
+                case 'report':
+                    $this->processReportTask($taskData);
+                    break;
+                default:
+                    throw new Exception('未知任务类型: ' . $task['task_type']);
+            }
+            
+            // 记录任务完成信息
+            $endTime = microtime(true);
+            $endMemory = memory_get_usage(true);
+            $duration = round($endTime - $startTime, 2);
+            $memoryUsed = $endMemory - $startMemory;
+            
+            error_log("✅ 任务完成: {$task['task_type']} (ID: {$task['id']}) - 耗时: {$duration}s, 内存: " . $this->formatBytes($memoryUsed));
+            
+            // 更新任务状态为完成
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'completed', completed_at = NOW() WHERE id = ?",
+                [$task['id']]
+            );
+            
+            // 如果是录制任务完成，检查是否所有录制都完成了
+            if ($task['task_type'] === 'record') {
+                $this->checkAllRecordsCompleted($task['order_id']);
+            }
+            
+        } catch (Exception $e) {
+            // 记录任务失败信息
+            $endTime = microtime(true);
+            $duration = round($endTime - $startTime, 2);
+            
+            error_log("❌ 任务失败: {$task['task_type']} (ID: {$task['id']}) - 耗时: {$duration}s, 错误: " . $e->getMessage());
+            
+            // 更新任务状态为失败
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
+                [$e->getMessage(), $task['id']]
+            );
+            
+            throw $e; // 重新抛出异常，让重试机制处理
+        }
+    }
+    
+    /**
+     * 带诊断的录制任务处理
+     */
+    private function processRecordTaskWithDiagnostics($taskData, $taskId) {
+        $videoFileId = $taskData['video_file_id'];
+        $videoFile = $this->db->fetchOne("SELECT * FROM video_files WHERE id = ?", [$videoFileId]);
+        
+        if (!$videoFile || empty($videoFile['flv_url'])) {
+            throw new Exception('视频文件或FLV地址不存在');
+        }
+        
+        // 检查FLV地址是否有效
+        $this->validateFlvUrl($videoFile['flv_url']);
+        
+        // 检查系统资源
+        $this->checkSystemResources();
+        
+        $videoProcessor = new VideoProcessor();
+        $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
+    }
+    
+    /**
+     * 验证FLV地址
+     */
+    private function validateFlvUrl($flvUrl) {
+        // 检查URL格式
+        if (!filter_var($flvUrl, FILTER_VALIDATE_URL)) {
+            throw new Exception('FLV地址格式无效');
+        }
+        
+        // 检查是否是抖音FLV地址
+        if (strpos($flvUrl, 'douyincdn.com') === false) {
+            error_log("⚠️ 非抖音FLV地址: {$flvUrl}");
+        }
+        
+        // 检查地址是否过期（通过expire参数）
+        if (preg_match('/expire=(\d+)/', $flvUrl, $matches)) {
+            $expireTime = intval($matches[1]);
+            $currentTime = time();
+            
+            if ($expireTime < $currentTime) {
+                throw new Exception('FLV地址已过期，请重新获取');
+            }
+            
+            $remainingTime = $expireTime - $currentTime;
+            if ($remainingTime < 300) { // 少于5分钟
+                error_log("⚠️ FLV地址即将过期: {$remainingTime}秒后过期");
+            }
+        }
+    }
+    
+    /**
+     * 检查系统资源
+     */
+    private function checkSystemResources() {
+        // 检查内存使用率
+        $memoryUsage = memory_get_usage(true);
+        $memoryLimit = ini_get('memory_limit');
+        $memoryLimitBytes = $this->parseMemoryLimit($memoryLimit);
+        
+        if ($memoryUsage > $memoryLimitBytes * 0.8) {
+            throw new Exception('内存使用率过高，请稍后重试');
+        }
+        
+        // 检查CPU负载
+        $loadAvg = sys_getloadavg();
+        if ($loadAvg[0] > 4.0) { // 1分钟平均负载
+            throw new Exception('CPU负载过高，请稍后重试');
+        }
+        
+        // 检查磁盘空间
+        $freeSpace = disk_free_space(sys_get_temp_dir());
+        if ($freeSpace < 1024 * 1024 * 1024) { // 少于1GB
+            throw new Exception('磁盘空间不足，请清理临时文件');
+        }
+    }
+    
+    /**
+     * 解析内存限制
+     */
+    private function parseMemoryLimit($memoryLimit) {
+        $unit = strtolower(substr($memoryLimit, -1));
+        $value = intval($memoryLimit);
+        
+        switch ($unit) {
+            case 'g': return $value * 1024 * 1024 * 1024;
+            case 'm': return $value * 1024 * 1024;
+            case 'k': return $value * 1024;
+            default: return $value;
+        }
+    }
+    
+    /**
+     * 获取系统配置
+     */
+    private function getSystemConfig($key, $defaultValue = null) {
+        try {
+            $config = $this->db->fetchOne(
+                "SELECT config_value FROM system_config WHERE config_key = ?",
+                [$key]
+            );
+            
+            if ($config && isset($config['config_value'])) {
+                return $config['config_value'];
+            }
+            
+            return $defaultValue;
+        } catch (Exception $e) {
+            error_log("获取系统配置失败: {$key} - " . $e->getMessage());
+            return $defaultValue;
+        }
+    }
+    
+    /**
+     * 格式化字节数
+     */
+    private function formatBytes($bytes) {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $unitIndex = 0;
+        
+        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
+            $bytes /= 1024;
+            $unitIndex++;
+        }
+        
+        return round($bytes, 2) . ' ' . $units[$unitIndex];
+    }
+    
+    /**
+     * 在后台执行任务
+     */
+    private function executeTaskInBackground($task) {
+        $taskData = json_decode($task['task_data'], true);
+        
+        try {
+            // 根据任务类型进行处理
+            switch ($task['task_type']) {
+                case 'record':
+                    $this->processRecordTask($taskData);
+                    break;
+                case 'transcode':
+                    $this->processTranscodeTask($taskData);
+                    break;
+                case 'segment':
+                    $this->processSegmentTask($taskData);
+                    break;
+                case 'asr':
+                    $this->processAsrTask($taskData);
+                    break;
+                case 'analysis':
+                    $this->processAnalysisTask($taskData);
+                    break;
+                case 'report':
+                    $this->processReportTask($taskData);
+                    break;
+                default:
+                    throw new Exception('未知任务类型: ' . $task['task_type']);
+            }
+            
+            // 更新任务状态为完成
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'completed', completed_at = NOW() WHERE id = ?",
+                [$task['id']]
+            );
+            
+            // 如果是录制任务完成，检查是否所有录制都完成了
+            if ($task['task_type'] === 'record') {
+                $this->checkAllRecordsCompleted($task['order_id']);
+            }
+            
+        } catch (Exception $e) {
+            // 更新任务状态为失败
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
+                [$e->getMessage(), $task['id']]
+            );
+            error_log("异步任务处理失败: {$task['task_type']} - " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 检查所有录制是否完成，如果完成则开始后续任务
+     */
+    private function checkAllRecordsCompleted($orderId) {
+        // 检查是否还有未完成的录制任务
+        $pendingRecords = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM video_processing_queue 
+             WHERE order_id = ? AND task_type = 'record' AND status IN ('pending', 'processing')",
+            [$orderId]
+        )['count'];
+        
+        if ($pendingRecords == 0) {
+            // 所有录制完成，开始处理后续任务
+            $this->startNextPhaseTasks($orderId);
+        }
+    }
+    
+    /**
+     * 开始下一阶段的任务（转码、切片等）
+     */
+    private function startNextPhaseTasks($orderId) {
+        // 获取下一个待处理任务
+        $nextTask = $this->db->fetchOne(
             "SELECT * FROM video_processing_queue 
              WHERE order_id = ? AND status = 'pending' 
              ORDER BY priority DESC, created_at ASC 
@@ -473,9 +875,8 @@ class VideoAnalysisOrder {
             [$orderId]
         );
         
-        if ($firstTask) {
-            // 立即处理第一个任务
-            $this->processTask($firstTask);
+        if ($nextTask) {
+            $this->processTask($nextTask);
         }
     }
     

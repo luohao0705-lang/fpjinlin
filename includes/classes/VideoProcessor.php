@@ -87,11 +87,14 @@ class VideoProcessor {
             
             $this->updateRecordingProgress($videoFileId, 30, '准备录制环境', 'recording');
             
-            // 使用FFmpeg录制FLV流（带进度监控）
-            $this->recordFlvStreamWithProgress($flvUrl, $tempFile, $videoFileId);
+            // 使用FFmpeg录制FLV流（带进度监控和超时控制）
+            $this->recordFlvStreamWithTimeout($flvUrl, $tempFile, $videoFileId);
             
             // 确保录制完成后更新进度
             $this->updateRecordingProgress($videoFileId, 80, '录制完成，处理文件', 'recording');
+            
+            // 验证录制文件大小和质量
+            $this->validateRecordingFile($tempFile, $videoFileId);
             
             // 检查录制文件
             if (!file_exists($tempFile) || filesize($tempFile) === 0) {
@@ -746,5 +749,222 @@ class VideoProcessor {
             return round($bytes, 2) . ' ' . $units[$unitIndex];
         }
         return formatFileSize($bytes);
+    }
+    
+    /**
+     * 使用FFmpeg录制FLV流（带超时控制和资源限制）
+     */
+    private function recordFlvStreamWithTimeout($flvUrl, $outputFile, $videoFileId) {
+        $maxDuration = $this->config['max_duration'];
+        $timeout = $maxDuration + 30; // 最大录制时间 + 30秒缓冲
+        
+        // 检查系统资源
+        $this->checkSystemResourcesBeforeRecording();
+        
+        // 判断输入是FLV流还是本地文件
+        $isLocalFile = file_exists($flvUrl);
+        
+        if ($isLocalFile) {
+            // 本地文件，使用简单参数
+            $command = sprintf(
+                'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        } else {
+            // FLV流，使用流优化参数
+            $command = sprintf(
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        }
+        
+        error_log("🔧 执行FFmpeg命令: {$command}");
+        
+        // 使用proc_open执行命令，支持超时控制
+        $descriptorspec = array(
+            0 => array("pipe", "r"),  // stdin
+            1 => array("pipe", "w"),  // stdout
+            2 => array("pipe", "w")   // stderr
+        );
+        
+        $process = proc_open($command, $descriptorspec, $pipes);
+        
+        if (is_resource($process)) {
+            fclose($pipes[0]); // 关闭stdin
+            
+            $startTime = time();
+            $lastProgress = 30;
+            
+            // 设置流为非阻塞模式
+            stream_set_blocking($pipes[1], false);
+            stream_set_blocking($pipes[2], false);
+            
+            while (true) {
+                // 检查超时
+                if (time() - $startTime > $timeout) {
+                    error_log("⚠️ 录制超时，强制结束");
+                    proc_terminate($process);
+                    break;
+                }
+                
+                // 检查进程是否还在运行
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    break;
+                }
+                
+                // 读取输出
+                $output = fread($pipes[1], 1024);
+                if ($output) {
+                    // 解析进度信息
+                    if (preg_match('/out_time_ms=(\d+)/', $output, $matches)) {
+                        $currentTime = intval($matches[1]) / 1000000;
+                        $progress = min(30 + intval(($currentTime / $maxDuration) * 50), 80);
+                        
+                        if ($progress > $lastProgress) {
+                            $this->updateRecordingProgress($videoFileId, $progress, "录制中... {$currentTime}s", 'recording');
+                            $lastProgress = $progress;
+                        }
+                    }
+                }
+                
+                // 短暂休眠，避免CPU占用过高
+                usleep(100000); // 100ms
+            }
+            
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            
+            $returnCode = proc_close($process);
+            
+            if ($returnCode !== 0) {
+                throw new Exception('FFmpeg录制失败，返回码: ' . $returnCode);
+            }
+            
+        } else {
+            // 回退到exec方式
+            $this->recordFlvStream($flvUrl, $outputFile);
+        }
+    }
+    
+    /**
+     * 验证录制文件
+     */
+    private function validateRecordingFile($filePath, $videoFileId) {
+        if (!file_exists($filePath)) {
+            throw new Exception('录制文件不存在');
+        }
+        
+        $fileSize = filesize($filePath);
+        if ($fileSize === 0) {
+            throw new Exception('录制文件为空');
+        }
+        
+        // 检查文件大小是否合理（至少1MB）
+        if ($fileSize < 1024 * 1024) {
+            error_log("⚠️ 录制文件过小: " . $this->formatFileSize($fileSize));
+            $this->updateRecordingProgress($videoFileId, 85, "录制文件较小: " . $this->formatFileSize($fileSize), 'recording');
+        }
+        
+        // 获取视频信息
+        $videoInfo = $this->getVideoInfo($filePath);
+        if (!$videoInfo) {
+            throw new Exception('无法获取视频信息');
+        }
+        
+        // 检查视频时长
+        $duration = $videoInfo['duration'] ?? 0;
+        if ($duration < 10) {
+            error_log("⚠️ 录制时长过短: {$duration}秒");
+            $this->updateRecordingProgress($videoFileId, 90, "录制时长较短: {$duration}秒", 'recording');
+        }
+        
+        error_log("✅ 录制文件验证通过: " . $this->formatFileSize($fileSize) . ", 时长: {$duration}秒");
+    }
+    
+    /**
+     * 录制前检查系统资源
+     */
+    private function checkSystemResourcesBeforeRecording() {
+        // 检查内存使用率
+        $memoryUsage = memory_get_usage(true);
+        $memoryLimit = ini_get('memory_limit');
+        $memoryLimitBytes = $this->parseMemoryLimit($memoryLimit);
+        
+        if ($memoryUsage > $memoryLimitBytes * 0.7) {
+            throw new Exception('内存使用率过高，无法开始录制');
+        }
+        
+        // 检查CPU负载
+        $loadAvg = sys_getloadavg();
+        if ($loadAvg[0] > 3.0) { // 1分钟平均负载
+            throw new Exception('CPU负载过高，无法开始录制');
+        }
+        
+        // 检查磁盘空间
+        $freeSpace = disk_free_space(sys_get_temp_dir());
+        if ($freeSpace < 2 * 1024 * 1024 * 1024) { // 少于2GB
+            throw new Exception('磁盘空间不足，无法开始录制');
+        }
+        
+        // 检查FFmpeg进程数量
+        $maxConcurrent = $this->getSystemConfig('max_concurrent_processing', 2);
+        $ffmpegProcesses = $this->getFFmpegProcessCount();
+        if ($ffmpegProcesses >= $maxConcurrent) {
+            throw new Exception("FFmpeg进程过多（{$ffmpegProcesses}/{$maxConcurrent}），请等待其他录制完成");
+        }
+        
+        error_log("✅ 系统资源检查通过 - 内存: " . $this->formatBytes($memoryUsage) . "/" . $this->formatBytes($memoryLimitBytes) . 
+                 ", CPU负载: " . $loadAvg[0] . ", 磁盘空间: " . $this->formatBytes($freeSpace) . 
+                 ", FFmpeg进程: {$ffmpegProcesses}");
+    }
+    
+    /**
+     * 获取FFmpeg进程数量
+     */
+    private function getFFmpegProcessCount() {
+        $output = [];
+        exec('ps aux | grep ffmpeg | grep -v grep | wc -l', $output);
+        return intval($output[0] ?? 0);
+    }
+    
+    /**
+     * 解析内存限制
+     */
+    private function parseMemoryLimit($memoryLimit) {
+        $unit = strtolower(substr($memoryLimit, -1));
+        $value = intval($memoryLimit);
+        
+        switch ($unit) {
+            case 'g': return $value * 1024 * 1024 * 1024;
+            case 'm': return $value * 1024 * 1024;
+            case 'k': return $value * 1024;
+            default: return $value;
+        }
+    }
+    
+    /**
+     * 获取系统配置
+     */
+    private function getSystemConfig($key, $defaultValue = null) {
+        try {
+            $config = $this->db->fetchOne(
+                "SELECT config_value FROM system_config WHERE config_key = ?",
+                [$key]
+            );
+            
+            if ($config && isset($config['config_value'])) {
+                return intval($config['config_value']);
+            }
+            
+            return $defaultValue;
+        } catch (Exception $e) {
+            error_log("获取系统配置失败: {$key} - " . $e->getMessage());
+            return $defaultValue;
+        }
     }
 }
