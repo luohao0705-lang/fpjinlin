@@ -11,8 +11,8 @@ ini_set('display_errors', 1);
 echo "<h2>录制测试</h2>";
 
 try {
-    // 创建VideoProcessor实例
-    $processor = new VideoProcessor();
+    // 直接测试FFmpeg，不依赖VideoProcessor类
+    echo "<p>直接测试FFmpeg功能...</p>";
     
     // 测试FLV地址
     $flvUrl = 'http://pull-flv-l11.douyincdn.com/stage/stream-117938925979566225_or4.flv?arch_hrchy=w1&exp_hrchy=w1&expire=1758043051&major_anchor_level=common&sign=e89d25e0d515043fe75bb9e5f6dc8efc&t_id=037-2025091001173157A1F3440DB6F835A1D0-XfqGZG&unique_id=stream-117938925979566225_145_flv_or4';

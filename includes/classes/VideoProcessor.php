@@ -48,8 +48,11 @@ class VideoProcessor {
      * 初始化阿里云OSS客户端
      */
     private function initOssClient() {
+        // 如果OSS配置不完整，使用本地存储模式
         if (empty($this->config['oss_bucket'])) {
-            throw new Exception('OSS配置未完成');
+            error_log("⚠️ OSS配置不完整，将使用本地存储模式");
+            $this->ossClient = null;
+            return;
         }
         
         // 这里需要引入阿里云OSS SDK
