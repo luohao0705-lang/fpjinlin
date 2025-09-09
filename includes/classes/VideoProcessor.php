@@ -543,6 +543,15 @@ class VideoProcessor {
         if ($returnCode !== 0) {
             $errorMsg = implode("\n", $output);
             error_log("❌ FFmpeg录制失败: {$errorMsg}");
+            
+            // 检查是否是FLV地址过期
+            if (strpos($errorMsg, '404 Not Found') !== false || 
+                strpos($errorMsg, 'Connection refused') !== false ||
+                strpos($errorMsg, 'timeout') !== false ||
+                $returnCode === 255) {
+                throw new Exception('FLV地址已过期或无法访问，请重新获取有效的直播地址');
+            }
+            
             throw new Exception('FFmpeg录制失败: ' . $errorMsg);
         }
         
@@ -660,13 +669,12 @@ class VideoProcessor {
                     $errorMsg .= '，错误信息: ' . trim($stderr);
                 }
                 
-                // 检查是否是404错误
-                if (strpos($stderr, '404 Not Found') !== false) {
-                    $errorMsg = 'FLV地址已过期（404错误），请重新获取有效的直播地址';
-                } elseif (strpos($stderr, 'Connection refused') !== false) {
-                    $errorMsg = '无法连接到直播服务器，请检查网络连接';
-                } elseif (strpos($stderr, 'timeout') !== false) {
-                    $errorMsg = '连接超时，直播可能已结束';
+                // 检查是否是FLV地址过期或连接问题
+                if (strpos($stderr, '404 Not Found') !== false || 
+                    strpos($stderr, 'Connection refused') !== false ||
+                    strpos($stderr, 'timeout') !== false ||
+                    $returnCode === 255) {
+                    $errorMsg = 'FLV地址已过期或无法访问，请重新获取有效的直播地址';
                 }
                 
                 throw new Exception($errorMsg);
