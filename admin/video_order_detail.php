@@ -9,12 +9,10 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-// 设置错误处理函数（仅在非AJAX请求时）
-if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest') {
-    set_error_handler(function($severity, $message, $file, $line) {
-        throw new ErrorException($message, 0, $severity, $file, $line);
-    });
-}
+// 暂时禁用错误处理函数，避免干扰AJAX请求
+// set_error_handler(function($severity, $message, $file, $line) {
+//     throw new ErrorException($message, 0, $severity, $file, $line);
+// });
 
 require_once '../config/config.php';
 require_once '../config/database.php';
@@ -90,9 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'start_analysis') {
         // 启动分析
+        error_log("开始处理启动分析请求 - 订单ID: {$orderId}");
+        
         try {
+            error_log("加载VideoAnalysisOrder类...");
             require_once '../includes/classes/VideoAnalysisOrder.php';
+            
+            error_log("创建VideoAnalysisOrder实例...");
             $videoAnalysisOrder = new VideoAnalysisOrder();
+            
+            error_log("调用startAnalysis方法...");
             $result = $videoAnalysisOrder->startAnalysis($orderId);
             $message = '分析已启动';
             
@@ -114,10 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // 如果是AJAX请求，直接输出响应
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            error_log("处理AJAX响应 - message: " . (isset($message) ? $message : 'null') . ", error: " . (isset($error) ? $error : 'null'));
             if (isset($message)) {
                 echo $message;
             } elseif (isset($error)) {
                 echo $error;
+            } else {
+                echo '未知错误';
             }
             exit;
         }
