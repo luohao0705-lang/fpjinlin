@@ -9,6 +9,11 @@ require_once '../includes/classes/VideoAnalysisOrder.php';
 require_once '../includes/classes/User.php';
 require_once '../includes/classes/OperationLog.php';
 
+// 启动session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -35,18 +40,14 @@ try {
     }
     
     if (empty($selfVideoLink)) {
-        throw new Exception('请输入本方视频链接');
+        throw new Exception('请输入本方直播间链接');
     }
     
     if (!is_array($competitorVideoLinks) || count($competitorVideoLinks) < 2) {
-        throw new Exception('请输入2个同行视频链接');
+        throw new Exception('请输入2个同行直播间链接');
     }
     
     // 基本验证：确保链接不为空
-    if (empty(trim($selfVideoLink))) {
-        throw new Exception('本方直播间链接不能为空');
-    }
-    
     foreach ($competitorVideoLinks as $index => $link) {
         if (empty(trim($link))) {
             throw new Exception('同行' . ($index + 1) . '直播间链接不能为空');
