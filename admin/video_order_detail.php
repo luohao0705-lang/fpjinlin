@@ -3,6 +3,17 @@
  * 视频分析订单详情页面
  * 复盘精灵系统 - 后台管理
  */
+
+// 启用详细错误报告
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
+// 设置错误处理函数
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
 require_once '../config/config.php';
 require_once '../config/database.php';
 
@@ -81,8 +92,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 记录调试信息
             error_log("启动分析成功 - 订单ID: {$orderId}, 结果: " . json_encode($result));
         } catch (Exception $e) {
-            $error = '启动分析失败：' . $e->getMessage();
-            error_log("启动分析失败 - 订单ID: {$orderId}, 错误: " . $e->getMessage());
+            $error = '启动分析失败：' . $e->getMessage() . 
+                    ' | 文件：' . $e->getFile() . 
+                    ' | 行号：' . $e->getLine() . 
+                    ' | 堆栈：' . $e->getTraceAsString();
+            error_log("启动分析失败 - 订单ID: {$orderId}, 详细错误: " . $error);
+        } catch (Error $e) {
+            $error = '启动分析失败（致命错误）：' . $e->getMessage() . 
+                    ' | 文件：' . $e->getFile() . 
+                    ' | 行号：' . $e->getLine() . 
+                    ' | 堆栈：' . $e->getTraceAsString();
+            error_log("启动分析失败（致命错误） - 订单ID: {$orderId}, 详细错误: " . $error);
         }
     } elseif ($action === 'stop_analysis') {
         // 停止分析
