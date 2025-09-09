@@ -90,6 +90,7 @@ class VideoProcessor {
             // 使用FFmpeg录制FLV流（带进度监控）
             $this->recordFlvStreamWithProgress($flvUrl, $tempFile, $videoFileId);
             
+            // 确保录制完成后更新进度
             $this->updateRecordingProgress($videoFileId, 80, '录制完成，处理文件', 'recording');
             
             // 检查录制文件
@@ -554,9 +555,9 @@ class VideoProcessor {
         // 检查proc_open是否可用
         if (!function_exists('proc_open')) {
             error_log("⚠️ proc_open不可用，使用exec作为备选方案");
-            $this->updateRecordingProgress($videoFileId, 10, "开始录制...", 'recording');
+            $this->updateRecordingProgress($videoFileId, 40, "开始录制...", 'recording');
             $this->recordFlvStream($flvUrl, $outputFile);
-            $this->updateRecordingProgress($videoFileId, 100, "录制完成", 'completed');
+            $this->updateRecordingProgress($videoFileId, 80, "录制完成", 'recording');
             return;
         }
         
@@ -600,9 +601,14 @@ class VideoProcessor {
             if ($returnCode !== 0) {
                 throw new Exception('FFmpeg录制失败，返回码: ' . $returnCode);
             }
+            
+            // 更新最终进度
+            $this->updateRecordingProgress($videoFileId, 80, "录制完成", 'recording');
         } else {
             // 如果proc_open不可用，回退到普通录制
+            $this->updateRecordingProgress($videoFileId, 40, "开始录制...", 'recording');
             $this->recordFlvStream($flvUrl, $outputFile);
+            $this->updateRecordingProgress($videoFileId, 80, "录制完成", 'recording');
         }
         
         if (!file_exists($outputFile) || filesize($outputFile) === 0) {
