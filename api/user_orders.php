@@ -66,7 +66,7 @@ try {
              {$whereClause}
              ORDER BY created_at DESC 
              LIMIT ?",
-            array_merge($params, [$limit])
+            array_merge($params, $params, [$limit])
         );
         
         jsonResponse([
@@ -88,13 +88,13 @@ try {
              {$whereClause}
              ORDER BY created_at DESC 
              LIMIT ? OFFSET ?",
-            array_merge($params, [$pageSize, $offset])
+            array_merge($params, $params, [$pageSize, $offset])
         );
         
         $total = $db->fetchOne(
             "SELECT (SELECT COUNT(*) FROM analysis_orders {$whereClause}) + 
                     (SELECT COUNT(*) FROM video_analysis_orders {$whereClause}) as count",
-            $params
+            array_merge($params, $params)
         )['count'];
         
         $result = [
