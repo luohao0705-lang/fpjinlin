@@ -21,33 +21,53 @@ if (!$admin || $admin['status'] != 1) {
     exit;
 }
 
-// 获取统计数据
+// 获取统计数据 - 合并文本分析和视频分析订单
 $orderStats = [];
 $codeStats = [];
 
 try {
-    // 尝试加载并实例化类
-    if (class_exists('AnalysisOrder')) {
-        $analysisOrder = new AnalysisOrder();
-        $orderStats = $analysisOrder->getStatistics();
-    } else {
-        // 如果类不存在，提供默认统计数据
-        $orderStats = [
-            'total' => 0,
-            'pending' => 0,
-            'processing' => 0,
-            'completed' => 0,
-            'failed' => 0
-        ];
-    }
-} catch (Exception $e) {
-    error_log("AnalysisOrder类加载失败: " . $e->getMessage());
+    // 获取文本分析订单统计
+    $textOrderStats = $db->fetchOne(
+        "SELECT 
+            COUNT(*) as total_orders,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+            SUM(cost_coins) as total_coins
+         FROM analysis_orders"
+    );
+    
+    // 获取视频分析订单统计
+    $videoOrderStats = $db->fetchOne(
+        "SELECT 
+            COUNT(*) as total_orders,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+            SUM(cost_coins) as total_coins
+         FROM video_analysis_orders"
+    );
+    
+    // 合并统计结果
     $orderStats = [
-        'total' => 0,
+        'total_orders' => $textOrderStats['total_orders'] + $videoOrderStats['total_orders'],
+        'pending' => $textOrderStats['pending'] + $videoOrderStats['pending'],
+        'processing' => $textOrderStats['processing'] + $videoOrderStats['processing'],
+        'completed' => $textOrderStats['completed'] + $videoOrderStats['completed'],
+        'failed' => $textOrderStats['failed'] + $videoOrderStats['failed'],
+        'total_coins' => $textOrderStats['total_coins'] + $videoOrderStats['total_coins']
+    ];
+} catch (Exception $e) {
+    error_log("订单统计获取失败: " . $e->getMessage());
+    $orderStats = [
+        'total_orders' => 0,
         'pending' => 0,
         'processing' => 0,
         'completed' => 0,
-        'failed' => 0
+        'failed' => 0,
+        'total_coins' => 0
     ];
 }
 

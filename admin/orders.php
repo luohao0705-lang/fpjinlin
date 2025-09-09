@@ -97,24 +97,34 @@ if (!empty($dateTo)) {
     $params[] = $dateTo;
 }
 
-// 获取订单列表
+// 获取订单列表 - 合并文本分析和视频分析订单
 $offset = ($page - 1) * $pageSize;
 $orders = $db->fetchAll(
-    "SELECT ao.*, u.phone, u.nickname,
+    "SELECT ao.id, ao.order_no, ao.title, ao.status, ao.cost_coins, ao.report_score, ao.report_level,
+            ao.created_at, ao.completed_at, u.phone, u.nickname, 'text' as order_type,
             DATE_FORMAT(ao.created_at, '%Y-%m-%d %H:%i') as created_time,
             DATE_FORMAT(ao.completed_at, '%Y-%m-%d %H:%i') as completed_time
      FROM analysis_orders ao 
      LEFT JOIN users u ON ao.user_id = u.id 
      WHERE {$where} 
-     ORDER BY ao.created_at DESC 
+     UNION ALL
+     SELECT vao.id, vao.order_no, vao.title, vao.status, vao.cost_coins, vao.report_score, vao.report_level,
+            vao.created_at, vao.completed_at, u.phone, u.nickname, 'video' as order_type,
+            DATE_FORMAT(vao.created_at, '%Y-%m-%d %H:%i') as created_time,
+            DATE_FORMAT(vao.completed_at, '%Y-%m-%d %H:%i') as completed_time
+     FROM video_analysis_orders vao 
+     LEFT JOIN users u ON vao.user_id = u.id 
+     WHERE {$where} 
+     ORDER BY created_at DESC 
      LIMIT ? OFFSET ?",
-    array_merge($params, [$pageSize, $offset])
+    array_merge($params, $params, [$pageSize, $offset])
 );
 
 // 获取总数
 $total = $db->fetchOne(
-    "SELECT COUNT(*) as count FROM analysis_orders ao LEFT JOIN users u ON ao.user_id = u.id WHERE {$where}",
-    $params
+    "SELECT (SELECT COUNT(*) FROM analysis_orders ao LEFT JOIN users u ON ao.user_id = u.id WHERE {$where}) + 
+            (SELECT COUNT(*) FROM video_analysis_orders vao LEFT JOIN users u ON vao.user_id = u.id WHERE {$where}) as count",
+    array_merge($params, $params)
 )['count'];
 
 $totalPages = ceil($total / $pageSize);
@@ -442,17 +452,31 @@ $stats = $db->fetchOne(
                                             <div class="btn-group" role="group">
                                                 <!-- 查看报告 -->
                                                 <?php if ($order['status'] == 'completed'): ?>
-                                                <a href="../report.php?id=<?php echo $order['id']; ?>" target="_blank" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye me-1"></i>查看
-                                                </a>
+                                                    <?php if ($order['order_type'] == 'video'): ?>
+                                                    <a href="video_order_detail.php?id=<?php echo $order['id']; ?>" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye me-1"></i>查看
+                                                    </a>
+                                                    <?php else: ?>
+                                                    <a href="../report.php?id=<?php echo $order['id']; ?>" target="_blank" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye me-1"></i>查看
+                                                    </a>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 
                                                 <!-- 查看详情 -->
+                                                <?php if ($order['order_type'] == 'video'): ?>
+                                                <a href="video_order_detail.php?id=<?php echo $order['id']; ?>" 
+                                                   class="btn btn-sm btn-outline-info">
+                                                    <i class="fas fa-info me-1"></i>详情
+                                                </a>
+                                                <?php else: ?>
                                                 <a href="order_detail.php?id=<?php echo $order['id']; ?>" 
                                                    class="btn btn-sm btn-outline-info">
                                                     <i class="fas fa-info me-1"></i>详情
                                                 </a>
+                                                <?php endif; ?>
                                                 
                                                 <!-- 删除订单 -->
                                                 <form method="POST" class="d-inline">
