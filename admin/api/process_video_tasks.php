@@ -73,12 +73,6 @@ try {
                         throw new Exception('FLV地址为空，请先在后台配置FLV地址');
                     }
                     
-                    // 更新任务状态为处理中
-                    $db->query(
-                        "UPDATE video_processing_queue SET status = 'processing', started_at = NOW() WHERE id = ?",
-                        [$task['id']]
-                    );
-                    
                     try {
                         require_once '../../includes/classes/VideoProcessor.php';
                         $videoProcessor = new VideoProcessor();
@@ -86,6 +80,12 @@ try {
                         // 真正执行录制
                         $videoProcessor->recordVideo($videoFile['id'], $videoFile['flv_url']);
                         error_log("✅ 录制完成: 视频文件ID {$videoFile['id']}, FLV地址: {$videoFile['flv_url']}");
+                        
+                        // 更新任务状态为完成
+                        $db->query(
+                            "UPDATE video_processing_queue SET status = 'completed', completed_at = NOW() WHERE id = ?",
+                            [$task['id']]
+                        );
                     } catch (Exception $e) {
                         // 更新任务状态为失败
                         $db->query(
