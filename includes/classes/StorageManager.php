@@ -152,15 +152,45 @@ class StorageManager {
         $localPath = $this->localBasePath . '/videos/' . $ossKey;
         $localDir = dirname($localPath);
         
-        if (!is_dir($localDir)) {
-            mkdir($localDir, 0755, true);
+        error_log("🔧 本地存储调试 - 源文件: {$filePath}");
+        error_log("🔧 本地存储调试 - 目标路径: {$localPath}");
+        error_log("🔧 本地存储调试 - 目标目录: {$localDir}");
+        error_log("🔧 本地存储调试 - 基础路径: {$this->localBasePath}");
+        
+        // 检查源文件是否存在
+        if (!file_exists($filePath)) {
+            throw new Exception("源文件不存在: {$filePath}");
         }
         
+        // 检查基础路径是否存在
+        if (!is_dir($this->localBasePath)) {
+            throw new Exception("本地存储基础路径不存在: {$this->localBasePath}");
+        }
+        
+        // 检查基础路径是否可写
+        if (!is_writable($this->localBasePath)) {
+            throw new Exception("本地存储基础路径不可写: {$this->localBasePath}");
+        }
+        
+        // 创建目标目录
+        if (!is_dir($localDir)) {
+            if (!mkdir($localDir, 0755, true)) {
+                throw new Exception("无法创建目标目录: {$localDir}");
+            }
+        }
+        
+        // 检查目标目录是否可写
+        if (!is_writable($localDir)) {
+            throw new Exception("目标目录不可写: {$localDir}");
+        }
+        
+        // 复制文件
         if (copy($filePath, $localPath)) {
             error_log("✅ 文件上传到本地成功: {$localPath}");
             return 'local://' . $ossKey;
         } else {
-            throw new Exception('本地存储失败');
+            $error = error_get_last();
+            throw new Exception("文件复制失败: " . ($error['message'] ?? '未知错误'));
         }
     }
     
