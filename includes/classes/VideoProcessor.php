@@ -377,24 +377,18 @@ class VideoProcessor {
      * 上传到OSS
      */
     private function uploadToOss($filePath, $ossKey) {
-        // 这里需要实现OSS上传逻辑
-        // $this->ossClient->uploadFile($this->config['oss_bucket'], $ossKey, $filePath);
-        
-        // 临时实现：直接返回文件路径
-        return $ossKey;
+        require_once 'StorageManager.php';
+        $storageManager = new StorageManager();
+        return $storageManager->upload($filePath, $ossKey);
     }
     
     /**
      * 从OSS下载
      */
     private function downloadFromOss($ossKey) {
-        // 这里需要实现OSS下载逻辑
-        // $tempFile = sys_get_temp_dir() . '/temp_' . time() . '.mp4';
-        // $this->ossClient->getObject($this->config['oss_bucket'], $ossKey, $tempFile);
-        // return $tempFile;
-        
-        // 临时实现：直接返回OSS键
-        return $ossKey;
+        require_once 'StorageManager.php';
+        $storageManager = new StorageManager();
+        return $storageManager->download($ossKey);
     }
     
     /**
