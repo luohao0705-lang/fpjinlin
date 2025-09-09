@@ -309,7 +309,7 @@ class VideoAnalysisOrder {
                 throw new Exception('订单不存在');
             }
             
-            if ($order['status'] !== 'pending' && $order['status'] !== 'reviewing') {
+            if (!in_array($order['status'], ['pending', 'reviewing', 'processing', 'failed'])) {
                 throw new Exception('订单状态不允许启动分析');
             }
             
@@ -376,6 +376,22 @@ class VideoAnalysisOrder {
      * 创建处理任务
      */
     private function createProcessingTasks($orderId) {
+        // 检查是否已有处理任务
+        $existingTasks = $this->db->fetchOne(
+            "SELECT COUNT(*) as count FROM video_processing_queue WHERE order_id = ?",
+            [$orderId]
+        )['count'];
+        
+        if ($existingTasks > 0) {
+            // 如果已有任务，重置失败的任务为待处理
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'pending', error_message = NULL 
+                 WHERE order_id = ? AND status = 'failed'",
+                [$orderId]
+            );
+            return;
+        }
+        
         $videoFiles = $this->db->fetchAll(
             "SELECT * FROM video_files WHERE order_id = ? ORDER BY video_type, video_index",
             [$orderId]
