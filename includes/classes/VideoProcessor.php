@@ -409,8 +409,19 @@ class VideoProcessor {
      * 更新视频文件状态
      */
     private function updateVideoFileStatus($videoFileId, $status, $errorMessage = null) {
+        // 映射状态值到数据库支持的值
+        $statusMap = [
+            'recording' => 'processing',
+            'downloading' => 'processing',
+            'completed' => 'completed',
+            'failed' => 'failed',
+            'pending' => 'pending'
+        ];
+        
+        $dbStatus = $statusMap[$status] ?? 'pending';
+        
         $sql = "UPDATE video_files SET status = ?";
-        $params = [$status];
+        $params = [$dbStatus];
         
         if ($errorMessage) {
             $sql .= ", error_message = ?";

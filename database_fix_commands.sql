@@ -8,7 +8,11 @@ MODIFY COLUMN `status` ENUM('pending', 'processing', 'completed', 'failed', 'ret
 ALTER TABLE `video_processing_queue` 
 MODIFY COLUMN `task_type` ENUM('record', 'download', 'transcode', 'segment', 'asr', 'analysis', 'report') NOT NULL COMMENT '任务类型';
 
--- 2. 添加录制进度字段到 video_files 表
+-- 2. 修复 video_files 表的 status 字段
+ALTER TABLE `video_files` 
+MODIFY COLUMN `status` ENUM('pending', 'downloading', 'processing', 'completed', 'failed') DEFAULT 'pending' COMMENT '处理状态';
+
+-- 3. 添加录制进度字段到 video_files 表
 ALTER TABLE `video_files` 
 ADD COLUMN `recording_progress` TINYINT(3) DEFAULT 0 COMMENT '录制进度(0-100)' AFTER `status`,
 ADD COLUMN `recording_started_at` TIMESTAMP NULL COMMENT '录制开始时间' AFTER `recording_progress`,
