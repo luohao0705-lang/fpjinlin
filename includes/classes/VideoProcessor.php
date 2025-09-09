@@ -551,6 +551,15 @@ class VideoProcessor {
             2 => array("pipe", "w")   // stderr
         );
         
+        // 检查proc_open是否可用
+        if (!function_exists('proc_open')) {
+            error_log("⚠️ proc_open不可用，使用exec作为备选方案");
+            $this->updateRecordingProgress($videoFileId, 10, "开始录制...", 'recording');
+            $this->recordFlvStream($flvUrl, $outputFile);
+            $this->updateRecordingProgress($videoFileId, 100, "录制完成", 'completed');
+            return;
+        }
+        
         $process = proc_open($command, $descriptorspec, $pipes);
         
         if (is_resource($process)) {
