@@ -516,13 +516,26 @@ class VideoProcessor {
     private function recordFlvStream($flvUrl, $outputFile) {
         $maxDuration = $this->config['max_duration'];
         
-        // 针对抖音等直播平台的FLV流优化参数
-        $command = sprintf(
-            'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
-            escapeshellarg($flvUrl),
-            $maxDuration,
-            escapeshellarg($outputFile)
-        );
+        // 判断输入是FLV流还是本地文件
+        $isLocalFile = file_exists($flvUrl) || strpos($flvUrl, 'http') !== 0;
+        
+        if ($isLocalFile) {
+            // 本地文件，使用简单参数
+            $command = sprintf(
+                'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        } else {
+            // FLV流，使用流优化参数
+            $command = sprintf(
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        }
         
         error_log("🔧 执行FFmpeg命令: {$command}");
         
@@ -549,13 +562,26 @@ class VideoProcessor {
     private function recordFlvStreamWithProgress($flvUrl, $outputFile, $videoFileId) {
         $maxDuration = $this->config['max_duration'];
         
-        // 针对抖音等直播平台的FLV流优化参数
-        $command = sprintf(
-            'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y -progress -',
-            escapeshellarg($flvUrl),
-            $maxDuration,
-            escapeshellarg($outputFile)
-        );
+        // 判断输入是FLV流还是本地文件
+        $isLocalFile = file_exists($flvUrl) || strpos($flvUrl, 'http') !== 0;
+        
+        if ($isLocalFile) {
+            // 本地文件，使用简单参数
+            $command = sprintf(
+                'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y -progress -',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        } else {
+            // FLV流，使用流优化参数
+            $command = sprintf(
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y -progress -',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        }
         
         error_log("🔧 执行FFmpeg命令: {$command}");
         error_log("📊 配置参数 - 最大录制时长: {$maxDuration}秒");
