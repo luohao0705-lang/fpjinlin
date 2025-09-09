@@ -493,22 +493,54 @@ class VideoAnalysisOrder {
      */
     private function startProcessingTasks($orderId) {
         // 从系统配置获取并发数量
-        $maxConcurrent = $this->getSystemConfig('max_concurrent_processing', 2);
+        $maxConcurrent = $this->getSystemConfig('max_concurrent_processing', 1);
         
-        // 获取待处理的录制任务
+        // 检查当前正在运行的FFmpeg进程数量
+        $currentFFmpegProcesses = $this->getCurrentFFmpegProcessCount();
+        
+        if ($currentFFmpegProcesses >= $maxConcurrent) {
+            error_log("⚠️ 当前FFmpeg进程数({$currentFFmpegProcesses})已达到最大并发数({$maxConcurrent})，跳过启动新任务");
+            return;
+        }
+        
+        // 计算可启动的任务数量
+        $availableSlots = $maxConcurrent - $currentFFmpegProcesses;
+        
+        // 获取待处理的录制任务（严格限制数量）
         $recordTasks = $this->db->fetchAll(
             "SELECT * FROM video_processing_queue 
              WHERE order_id = ? AND status = 'pending' AND task_type = 'record'
              ORDER BY priority DESC, created_at ASC
              LIMIT ?",
-            [$orderId, $maxConcurrent]
+            [$orderId, $availableSlots]
         );
         
         if (!empty($recordTasks)) {
-            // 分批处理录制任务
-            foreach ($recordTasks as $task) {
+            error_log("🚀 启动 {$availableSlots} 个录制任务，当前FFmpeg进程: {$currentFFmpegProcesses}/{$maxConcurrent}");
+            
+            // 逐个处理录制任务（避免同时启动）
+            foreach ($recordTasks as $index => $task) {
+                // 添加延迟，避免同时启动
+                if ($index > 0) {
+                    sleep(2); // 每个任务间隔2秒启动
+                }
+                
                 $this->processTaskWithRetry($task);
             }
+        }
+    }
+    
+    /**
+     * 获取当前FFmpeg进程数量
+     */
+    private function getCurrentFFmpegProcessCount() {
+        try {
+            $output = [];
+            exec('ps aux | grep ffmpeg | grep -v grep | wc -l', $output);
+            return intval($output[0] ?? 0);
+        } catch (Exception $e) {
+            error_log("获取FFmpeg进程数失败: " . $e->getMessage());
+            return 0;
         }
     }
     

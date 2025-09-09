@@ -18,6 +18,15 @@ class VideoProcessor {
         
         $this->loadConfig();
         $this->initOssClient();
+        $this->lowCPUMode = false;
+    }
+    
+    /**
+     * 设置低CPU消耗模式
+     */
+    public function setLowCPUParams() {
+        $this->lowCPUMode = true;
+        error_log("🔧 启用低CPU消耗模式");
     }
     
     /**
@@ -530,7 +539,7 @@ class VideoProcessor {
         } else {
             // FLV流，使用流优化参数
             $command = sprintf(
-                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset ultrafast -crf 28 -c:a aac -ac 2 -ar 22050 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts -threads 1 %s -y',
                 escapeshellarg($flvUrl),
                 $maxDuration,
                 escapeshellarg($outputFile)
@@ -775,7 +784,7 @@ class VideoProcessor {
         } else {
             // FLV流，使用流优化参数
             $command = sprintf(
-                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset ultrafast -crf 28 -c:a aac -ac 2 -ar 22050 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts -threads 1 %s -y',
                 escapeshellarg($flvUrl),
                 $maxDuration,
                 escapeshellarg($outputFile)
