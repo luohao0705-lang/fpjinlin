@@ -349,11 +349,14 @@ class VideoAnalysisOrder {
             // 创建处理任务
             $this->createProcessingTasks($orderId);
             
+            // 立即开始处理第一个任务（录制任务）
+            $this->startProcessingTasks($orderId);
+            
             $this->db->commit();
             
             return [
                 'success' => true,
-                'message' => '分析已启动'
+                'message' => '分析已启动，正在自动处理中...'
             ];
             
         } catch (Exception $e) {
@@ -455,5 +458,178 @@ class VideoAnalysisOrder {
             "INSERT INTO video_processing_queue (order_id, task_type, task_data, priority, status) VALUES (?, 'report', ?, 6, 'pending')",
             [$orderId, json_encode(['order_id' => $orderId])]
         );
+    }
+    
+    /**
+     * 开始处理任务
+     */
+    private function startProcessingTasks($orderId) {
+        // 获取第一个待处理任务
+        $firstTask = $this->db->fetchOne(
+            "SELECT * FROM video_processing_queue 
+             WHERE order_id = ? AND status = 'pending' 
+             ORDER BY priority DESC, created_at ASC 
+             LIMIT 1",
+            [$orderId]
+        );
+        
+        if ($firstTask) {
+            // 立即处理第一个任务
+            $this->processTask($firstTask);
+        }
+    }
+    
+    /**
+     * 处理单个任务
+     */
+    private function processTask($task) {
+        try {
+            // 更新任务状态为处理中
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'processing', started_at = NOW() WHERE id = ?",
+                [$task['id']]
+            );
+            
+            $taskData = json_decode($task['task_data'], true);
+            
+            // 根据任务类型进行处理
+            switch ($task['task_type']) {
+                case 'record':
+                    $this->processRecordTask($taskData);
+                    break;
+                case 'transcode':
+                    $this->processTranscodeTask($taskData);
+                    break;
+                case 'segment':
+                    $this->processSegmentTask($taskData);
+                    break;
+                case 'asr':
+                    $this->processAsrTask($taskData);
+                    break;
+                case 'analysis':
+                    $this->processAnalysisTask($task['order_id']);
+                    break;
+                case 'report':
+                    $this->processReportTask($task['order_id']);
+                    break;
+            }
+            
+            // 更新任务状态为完成
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'completed', completed_at = NOW() WHERE id = ?",
+                [$task['id']]
+            );
+            
+            // 处理下一个任务
+            $this->processNextTask($task['order_id']);
+            
+        } catch (Exception $e) {
+            // 更新任务状态为失败
+            $this->db->query(
+                "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
+                [$e->getMessage(), $task['id']]
+            );
+            error_log("任务处理失败: {$task['task_type']} - " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 处理下一个任务
+     */
+    private function processNextTask($orderId) {
+        $nextTask = $this->db->fetchOne(
+            "SELECT * FROM video_processing_queue 
+             WHERE order_id = ? AND status = 'pending' 
+             ORDER BY priority DESC, created_at ASC 
+             LIMIT 1",
+            [$orderId]
+        );
+        
+        if ($nextTask) {
+            $this->processTask($nextTask);
+        } else {
+            // 所有任务完成，更新订单状态
+            $this->updateOrderStatus($orderId, 'completed');
+        }
+    }
+    
+    /**
+     * 处理录制任务
+     */
+    private function processRecordTask($taskData) {
+        $videoFileId = $taskData['video_file_id'];
+        $videoFile = $this->db->fetchOne("SELECT * FROM video_files WHERE id = ?", [$videoFileId]);
+        
+        if (!$videoFile || empty($videoFile['flv_url'])) {
+            throw new Exception('视频文件或FLV地址不存在');
+        }
+        
+        require_once __DIR__ . '/VideoProcessor.php';
+        $videoProcessor = new VideoProcessor();
+        $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
+    }
+    
+    /**
+     * 处理转码任务
+     */
+    private function processTranscodeTask($taskData) {
+        require_once __DIR__ . '/VideoProcessor.php';
+        $videoProcessor = new VideoProcessor();
+        $videoProcessor->transcodeVideo($taskData['video_file_id']);
+    }
+    
+    /**
+     * 处理切片任务
+     */
+    private function processSegmentTask($taskData) {
+        require_once __DIR__ . '/VideoProcessor.php';
+        $videoProcessor = new VideoProcessor();
+        $videoProcessor->segmentVideo($taskData['video_file_id']);
+    }
+    
+    /**
+     * 处理ASR任务
+     */
+    private function processAsrTask($taskData) {
+        require_once __DIR__ . '/WhisperService.php';
+        $whisperService = new WhisperService();
+        
+        $segments = $this->db->fetchAll(
+            "SELECT vs.* FROM video_segments vs 
+             WHERE vs.video_file_id = ? AND vs.status = 'completed'",
+            [$taskData['video_file_id']]
+        );
+        
+        foreach ($segments as $segment) {
+            $whisperService->processSegment($segment['id']);
+        }
+    }
+    
+    /**
+     * 处理分析任务
+     */
+    private function processAnalysisTask($orderId) {
+        require_once __DIR__ . '/QwenOmniService.php';
+        $qwenOmniService = new QwenOmniService();
+        
+        $segments = $this->db->fetchAll(
+            "SELECT vs.* FROM video_segments vs 
+             LEFT JOIN video_files vf ON vs.video_file_id = vf.id 
+             WHERE vf.order_id = ? AND vs.status = 'completed'",
+            [$orderId]
+        );
+        
+        foreach ($segments as $segment) {
+            $qwenOmniService->analyzeSegment($segment['id']);
+        }
+    }
+    
+    /**
+     * 处理报告任务
+     */
+    private function processReportTask($orderId) {
+        require_once __DIR__ . '/VideoAnalysisEngine.php';
+        $videoAnalysisEngine = new VideoAnalysisEngine();
+        $videoAnalysisEngine->processVideoAnalysis($orderId);
     }
 }

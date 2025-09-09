@@ -241,6 +241,8 @@ class VideoProcessor {
             $segmentDuration = $this->config['segment_duration'];
             $segmentCount = ceil($duration / $segmentDuration);
             
+            error_log("📊 切片配置 - 视频时长: {$duration}秒, 切片时长: {$segmentDuration}秒, 切片数量: {$segmentCount}");
+            
             // 从OSS下载到临时文件
             $tempInputFile = $this->downloadFromOss($videoFile['oss_key']);
             
@@ -540,6 +542,7 @@ class VideoProcessor {
         );
         
         error_log("🔧 执行FFmpeg命令: {$command}");
+        error_log("📊 配置参数 - 最大录制时长: {$maxDuration}秒");
         
         // 使用proc_open来实时监控进度
         $descriptorspec = array(

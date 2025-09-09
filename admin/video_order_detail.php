@@ -397,9 +397,9 @@ function getApiQuota($service) {
                                     <div class="col-md-6">
                                         <h6>操作控制</h6>
                                         <div class="btn-group" role="group">
-                                            <form method="POST" class="d-inline">
+                                            <form method="POST" class="d-inline" id="startAnalysisForm">
                                                 <input type="hidden" name="action" value="start_analysis">
-                                                <button type="submit" class="btn btn-primary" 
+                                                <button type="submit" class="btn btn-primary" id="startAnalysisBtn"
                                                         <?php echo $order['status'] === 'processing' ? 'disabled' : ''; ?>>
                                                     <i class="fas fa-play me-2"></i>启动分析
                                                 </button>
@@ -910,6 +910,54 @@ function getApiQuota($service) {
                 }, 5000);
             }
         }
+        
+        // 页面加载完成后启动定时器
+        $(document).ready(function() {
+            // 加载录制进度
+            loadRecordingProgress();
+            
+            // 加载任务监控
+            loadTaskMonitor();
+            
+            // 每3秒刷新一次录制进度
+            setInterval(loadRecordingProgress, 3000);
+            
+            // 每5秒刷新一次任务监控
+            setInterval(loadTaskMonitor, 5000);
+            
+            // 处理启动分析表单提交
+            $('#startAnalysisForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const $btn = $('#startAnalysisBtn');
+                const originalText = $btn.html();
+                
+                // 禁用按钮并显示加载状态
+                $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>启动中...');
+                
+                // 提交表单
+                $.post('', $(this).serialize(), function(response) {
+                    if (response && response.includes('分析已启动')) {
+                        showProcessingStatus('分析已启动，正在自动处理中...', 'success');
+                        
+                        // 立即开始监控
+                        loadTaskMonitor();
+                        loadRecordingProgress();
+                        
+                        // 3秒后刷新页面以更新状态
+                        setTimeout(function() {
+                            location.reload();
+                        }, 3000);
+                    } else {
+                        showProcessingStatus('启动分析失败，请检查错误信息', 'error');
+                        $btn.prop('disabled', false).html(originalText);
+                    }
+                }).fail(function() {
+                    showProcessingStatus('启动分析失败，请重试', 'error');
+                    $btn.prop('disabled', false).html(originalText);
+                });
+            });
+        });
         
     </script>
 </body>
