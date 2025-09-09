@@ -78,12 +78,9 @@ class VideoProcessor {
             
             $this->updateRecordingProgress($videoFileId, 10, '检查FFmpeg环境', 'recording');
             
-            // 检查FLV地址是否可访问
-            if (!$this->checkFlvUrl($flvUrl)) {
-                throw new Exception('FLV地址不可访问: ' . $flvUrl);
-            }
-            
-            $this->updateRecordingProgress($videoFileId, 20, '验证FLV地址', 'recording');
+            // 跳过FLV地址检查，直接尝试录制（因为抖音FLV地址可能很快过期）
+            // 让FFmpeg自己处理连接问题
+            $this->updateRecordingProgress($videoFileId, 20, '准备录制FLV流', 'recording');
             
             // 生成临时文件名
             $tempFile = sys_get_temp_dir() . '/video_' . $videoFileId . '_' . time() . '.mp4';
@@ -609,14 +606,27 @@ class VideoProcessor {
             
             $startTime = time();
             $lastProgress = 30;
+            $timeout = $maxDuration + 30; // 最大录制时间 + 30秒缓冲
             
             while (($line = fgets($pipes[1])) !== false) {
+                // 检查超时
+                if (time() - $startTime > $timeout) {
+                    error_log("⚠️ 录制超时，强制结束");
+                    proc_terminate($process);
+                    break;
+                }
                 // 解析FFmpeg进度输出
                 if (strpos($line, 'out_time_ms=') !== false) {
                     preg_match('/out_time_ms=(\d+)/', $line, $matches);
                     if (isset($matches[1])) {
                         $currentTime = intval($matches[1]) / 1000000; // 转换为秒
+                        // 改进进度计算：从30%到80%，确保能到达80%
                         $progress = min(30 + intval(($currentTime / $maxDuration) * 50), 80);
+                        
+                        // 如果接近最大时长，直接设置为80%
+                        if ($currentTime >= $maxDuration * 0.9) {
+                            $progress = 80;
+                        }
                         
                         if ($progress > $lastProgress) {
                             $this->updateRecordingProgress($videoFileId, $progress, "录制中... {$currentTime}s", 'recording');
@@ -640,7 +650,25 @@ class VideoProcessor {
             $returnCode = proc_close($process);
             
             if ($returnCode !== 0) {
-                throw new Exception('FFmpeg录制失败，返回码: ' . $returnCode);
+                // 获取stderr输出以获取详细错误信息
+                $stderr = stream_get_contents($pipes[2]);
+                fclose($pipes[2]);
+                
+                $errorMsg = 'FFmpeg录制失败，返回码: ' . $returnCode;
+                if ($stderr) {
+                    $errorMsg .= '，错误信息: ' . trim($stderr);
+                }
+                
+                // 检查是否是404错误
+                if (strpos($stderr, '404 Not Found') !== false) {
+                    $errorMsg = 'FLV地址已过期（404错误），请重新获取有效的直播地址';
+                } elseif (strpos($stderr, 'Connection refused') !== false) {
+                    $errorMsg = '无法连接到直播服务器，请检查网络连接';
+                } elseif (strpos($stderr, 'timeout') !== false) {
+                    $errorMsg = '连接超时，直播可能已结束';
+                }
+                
+                throw new Exception($errorMsg);
             }
             
             // 更新最终进度

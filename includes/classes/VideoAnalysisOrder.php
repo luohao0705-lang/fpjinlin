@@ -349,10 +349,10 @@ class VideoAnalysisOrder {
             // 创建处理任务
             $this->createProcessingTasks($orderId);
             
-            // 暂时不立即处理任务，避免在事务中执行复杂操作
-            // $this->startProcessingTasks($orderId);
-            
             $this->db->commit();
+            
+            // 在事务外启动任务处理
+            $this->startProcessingTasks($orderId);
             
             return [
                 'success' => true,

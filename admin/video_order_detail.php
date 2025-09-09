@@ -463,9 +463,7 @@ function getApiQuota($service) {
                                                 </button>
                                             </form>
                                             
-                                            <button type="button" class="btn btn-warning" id="processTasksBtn">
-                                                <i class="fas fa-cogs me-2"></i>处理任务
-                                            </button>
+                                            <!-- 处理任务按钮已移除，启动分析后自动处理 -->
                                             
                                             <button type="button" class="btn btn-info" id="systemCheckBtn">
                                                 <i class="fas fa-stethoscope me-2"></i>系统检查
@@ -767,34 +765,7 @@ function getApiQuota($service) {
             $('#ai-usage-container').html(html);
         }
         
-        // 处理任务
-        $('#processTasksBtn').click(function() {
-            const btn = $(this);
-            const originalText = btn.html();
-            
-            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>处理中...');
-            
-            // 显示处理状态
-            showProcessingStatus('开始处理任务...');
-            
-            $.get('api/process_video_tasks.php?order_id=<?php echo $orderId; ?>', function(response) {
-                if (response.success) {
-                    showProcessingStatus('✅ 任务处理完成：' + response.message + '，处理了 ' + response.processed + ' 个任务');
-                    // 刷新进度
-                    loadProgress();
-                } else {
-                    showProcessingStatus('❌ 任务处理失败：' + response.message, 'error');
-                }
-            }).fail(function(xhr) {
-                let errorMsg = '网络错误，请稍后重试';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
-                }
-                showProcessingStatus('❌ ' + errorMsg, 'error');
-            }).always(function() {
-                btn.prop('disabled', false).html(originalText);
-            });
-        });
+        // 处理任务按钮已移除，启动分析后自动处理
         
         // 系统检查
         $('#systemCheckBtn').click(function() {
