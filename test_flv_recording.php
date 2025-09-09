@@ -176,47 +176,56 @@ if ($_POST) {
                                 <li class="list-group-item">
                                     <strong>FFmpeg状态:</strong>
                                     <?php
-                                    $ffmpegOutput = [];
-                                    $ffmpegReturnCode = 0;
-                                    $ffmpegFound = false;
-                                    $ffmpegError = '';
-                                    
-                                    // 尝试不同的FFmpeg命令（Linux优先）
-                                    $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
-                                    
-                                    foreach ($ffmpegCommands as $cmd) {
-                                        exec($cmd . ' -version 2>&1', $ffmpegOutput, $returnCode);
-                                        if ($returnCode === 0) {
-                                            $ffmpegFound = true;
-                                            break;
-                                        } else {
-                                            $ffmpegError .= "命令: {$cmd}, 返回码: {$returnCode}, 输出: " . implode(' ', $ffmpegOutput) . "\n";
+                                    try {
+                                        $ffmpegOutput = [];
+                                        $ffmpegReturnCode = 0;
+                                        $ffmpegFound = false;
+                                        $ffmpegError = '';
+                                        
+                                        // 尝试不同的FFmpeg命令（Linux优先）
+                                        $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
+                                        
+                                        foreach ($ffmpegCommands as $cmd) {
+                                            exec($cmd . ' -version 2>&1', $ffmpegOutput, $returnCode);
+                                            if ($returnCode === 0) {
+                                                $ffmpegFound = true;
+                                                break;
+                                            } else {
+                                                $ffmpegError .= "命令: {$cmd}, 返回码: {$returnCode}, 输出: " . implode(' ', $ffmpegOutput) . "\n";
+                                            }
                                         }
-                                    }
-                                    
-                                    if ($ffmpegFound): ?>
-                                        <span class="badge bg-success ms-2">已安装</span>
-                                        <small class="text-muted"><?php echo htmlspecialchars($ffmpegOutput[0] ?? ''); ?></small>
-                                    <?php else: ?>
-                                        <span class="badge bg-danger ms-2">未安装</span>
-                                        <small class="text-muted">请安装FFmpeg并确保在PATH中</small>
-                                        <br><small class="text-danger">错误详情: <?php echo htmlspecialchars($ffmpegError); ?></small>
-                                    <?php endif; ?>
+                                        
+                                        if ($ffmpegFound): ?>
+                                            <span class="badge bg-success ms-2">已安装</span>
+                                            <small class="text-muted"><?php echo htmlspecialchars($ffmpegOutput[0] ?? ''); ?></small>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger ms-2">未安装</span>
+                                            <small class="text-muted">请安装FFmpeg并确保在PATH中</small>
+                                            <br><small class="text-danger">错误详情: <?php echo htmlspecialchars($ffmpegError); ?></small>
+                                        <?php endif; ?>
+                                    <?php } catch (Exception $e) { ?>
+                                        <span class="badge bg-danger ms-2">检查失败</span>
+                                        <small class="text-danger">错误: <?php echo htmlspecialchars($e->getMessage()); ?></small>
+                                    <?php } ?>
                                 </li>
                                 
                                 <li class="list-group-item">
                                     <strong>系统诊断:</strong>
                                     <div class="mt-2">
                                         <small class="text-muted">
-                                            <strong>PATH环境变量:</strong> <?php echo htmlspecialchars(getenv('PATH')); ?><br>
-                                            <strong>当前工作目录:</strong> <?php echo htmlspecialchars(getcwd()); ?><br>
-                                            <strong>PHP版本:</strong> <?php echo PHP_VERSION; ?><br>
-                                            <strong>禁用函数:</strong> <?php echo ini_get('disable_functions') ?: '无'; ?><br>
-                                            <strong>shell_exec测试:</strong> 
-                                            <?php 
-                                            $shellResult = shell_exec('whoami 2>&1');
-                                            echo $shellResult ? '正常' : '失败';
-                                            ?>
+                                            <?php try { ?>
+                                                <strong>PATH环境变量:</strong> <?php echo htmlspecialchars(getenv('PATH')); ?><br>
+                                                <strong>当前工作目录:</strong> <?php echo htmlspecialchars(getcwd()); ?><br>
+                                                <strong>PHP版本:</strong> <?php echo PHP_VERSION; ?><br>
+                                                <strong>禁用函数:</strong> <?php echo ini_get('disable_functions') ?: '无'; ?><br>
+                                                <strong>shell_exec测试:</strong> 
+                                                <?php 
+                                                $shellResult = shell_exec('whoami 2>&1');
+                                                echo $shellResult ? '正常' : '失败';
+                                                ?>
+                                            <?php } catch (Exception $e) { ?>
+                                                <span class="text-danger">诊断失败: <?php echo htmlspecialchars($e->getMessage()); ?></span>
+                                            <?php } ?>
                                         </small>
                                     </div>
                                 </li>
