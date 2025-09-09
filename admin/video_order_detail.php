@@ -73,11 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'start_analysis') {
         // 启动分析
         try {
+            require_once '../includes/classes/VideoAnalysisOrder.php';
             $videoAnalysisOrder = new VideoAnalysisOrder();
             $result = $videoAnalysisOrder->startAnalysis($orderId);
             $message = '分析已启动';
+            
+            // 记录调试信息
+            error_log("启动分析成功 - 订单ID: {$orderId}, 结果: " . json_encode($result));
         } catch (Exception $e) {
             $error = '启动分析失败：' . $e->getMessage();
+            error_log("启动分析失败 - 订单ID: {$orderId}, 错误: " . $e->getMessage());
         }
     } elseif ($action === 'stop_analysis') {
         // 停止分析
