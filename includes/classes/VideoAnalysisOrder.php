@@ -13,6 +13,12 @@ class VideoAnalysisOrder {
         } else {
             $this->db = new Database();
         }
+        
+        // 预加载必要的类
+        require_once __DIR__ . '/VideoProcessor.php';
+        require_once __DIR__ . '/WhisperService.php';
+        require_once __DIR__ . '/QwenOmniService.php';
+        require_once __DIR__ . '/VideoAnalysisEngine.php';
     }
     
     /**
@@ -349,8 +355,8 @@ class VideoAnalysisOrder {
             // 创建处理任务
             $this->createProcessingTasks($orderId);
             
-            // 立即开始处理任务
-            $this->startProcessingTasks($orderId);
+            // 暂时不立即处理任务，避免在事务中执行复杂操作
+            // $this->startProcessingTasks($orderId);
             
             $this->db->commit();
             
@@ -564,7 +570,6 @@ class VideoAnalysisOrder {
             throw new Exception('视频文件或FLV地址不存在');
         }
         
-        require_once __DIR__ . '/VideoProcessor.php';
         $videoProcessor = new VideoProcessor();
         $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
     }
@@ -573,7 +578,6 @@ class VideoAnalysisOrder {
      * 处理转码任务
      */
     private function processTranscodeTask($taskData) {
-        require_once __DIR__ . '/VideoProcessor.php';
         $videoProcessor = new VideoProcessor();
         $videoProcessor->transcodeVideo($taskData['video_file_id']);
     }
@@ -582,7 +586,6 @@ class VideoAnalysisOrder {
      * 处理切片任务
      */
     private function processSegmentTask($taskData) {
-        require_once __DIR__ . '/VideoProcessor.php';
         $videoProcessor = new VideoProcessor();
         $videoProcessor->segmentVideo($taskData['video_file_id']);
     }
@@ -591,7 +594,6 @@ class VideoAnalysisOrder {
      * 处理ASR任务
      */
     private function processAsrTask($taskData) {
-        require_once __DIR__ . '/WhisperService.php';
         $whisperService = new WhisperService();
         
         $segments = $this->db->fetchAll(
@@ -609,7 +611,6 @@ class VideoAnalysisOrder {
      * 处理分析任务
      */
     private function processAnalysisTask($orderId) {
-        require_once __DIR__ . '/QwenOmniService.php';
         $qwenOmniService = new QwenOmniService();
         
         $segments = $this->db->fetchAll(
@@ -628,7 +629,6 @@ class VideoAnalysisOrder {
      * 处理报告任务
      */
     private function processReportTask($orderId) {
-        require_once __DIR__ . '/VideoAnalysisEngine.php';
         $videoAnalysisEngine = new VideoAnalysisEngine();
         $videoAnalysisEngine->processVideoAnalysis($orderId);
     }

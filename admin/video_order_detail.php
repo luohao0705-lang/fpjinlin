@@ -104,6 +104,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ' | 堆栈：' . $e->getTraceAsString();
             error_log("启动分析失败（致命错误） - 订单ID: {$orderId}, 详细错误: " . $error);
         }
+        
+        // 如果是AJAX请求，直接输出响应
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            if (isset($message)) {
+                echo $message;
+            } elseif (isset($error)) {
+                echo $error;
+            }
+            exit;
+        }
     } elseif ($action === 'stop_analysis') {
         // 停止分析
         try {
@@ -961,25 +971,34 @@ function getApiQuota($service) {
                 $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>启动中...');
                 
                 // 提交表单
-                $.post('', $(this).serialize(), function(response) {
-                    if (response && response.includes('分析已启动')) {
-                        showProcessingStatus('分析已启动，正在自动处理中...', 'success');
-                        
-                        // 立即开始监控
-                        loadTaskMonitor();
-                        loadRecordingProgress();
-                        
-                        // 3秒后刷新页面以更新状态
-                        setTimeout(function() {
-                            location.reload();
-                        }, 3000);
-                    } else {
-                        showProcessingStatus('启动分析失败，请检查错误信息', 'error');
+                $.ajax({
+                    url: '',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response && response.includes('分析已启动')) {
+                            showProcessingStatus('分析已启动，正在自动处理中...', 'success');
+                            
+                            // 立即开始监控
+                            loadTaskMonitor();
+                            loadRecordingProgress();
+                            
+                            // 3秒后刷新页面以更新状态
+                            setTimeout(function() {
+                                location.reload();
+                            }, 3000);
+                        } else {
+                            showProcessingStatus('启动分析失败：' + response, 'error');
+                            $btn.prop('disabled', false).html(originalText);
+                        }
+                    },
+                    error: function() {
+                        showProcessingStatus('启动分析失败，请重试', 'error');
                         $btn.prop('disabled', false).html(originalText);
                     }
-                }).fail(function() {
-                    showProcessingStatus('启动分析失败，请重试', 'error');
-                    $btn.prop('disabled', false).html(originalText);
                 });
             });
         });
