@@ -36,25 +36,55 @@ if ($_POST) {
                 throw new Exception('FFmpeg不可用，返回码: ' . $ffmpegReturnCode);
             }
             
-            // 检查FLV地址是否可访问
+            // 检查FLV地址是否可访问（更宽松的检查）
             $context = stream_context_create([
                 'http' => [
-                    'timeout' => 10,
-                    'method' => 'HEAD'
+                    'timeout' => 5,
+                    'method' => 'HEAD',
+                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 ]
             ]);
             
             $headers = @get_headers($flvUrl, 1, $context);
-            if (!$headers || strpos($headers[0], '200') === false) {
-                throw new Exception('FLV地址不可访问: ' . $flvUrl);
+            $isAccessible = false;
+            
+            if ($headers) {
+                $statusCode = $headers[0];
+                // 接受200、302、403等状态码（有些流需要特殊处理）
+                if (strpos($statusCode, '200') !== false || 
+                    strpos($statusCode, '302') !== false || 
+                    strpos($statusCode, '403') !== false) {
+                    $isAccessible = true;
+                }
+            }
+            
+            // 如果HEAD请求失败，尝试GET请求（只获取少量数据）
+            if (!$isAccessible) {
+                $context = stream_context_create([
+                    'http' => [
+                        'timeout' => 5,
+                        'method' => 'GET',
+                        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    ]
+                ]);
+                
+                $testData = @file_get_contents($flvUrl, false, $context, 0, 1024);
+                if ($testData !== false && strlen($testData) > 0) {
+                    $isAccessible = true;
+                }
+            }
+            
+            if (!$isAccessible) {
+                error_log("⚠️ FLV地址检查失败，但继续尝试录制: {$flvUrl}");
+                // 不抛出异常，继续尝试录制
             }
             
             // 测试录制
             $tempFile = sys_get_temp_dir() . '/test_recording_' . time() . '.mp4';
             
-            // 直接调用FFmpeg命令
+            // 直接调用FFmpeg命令（针对抖音FLV流优化）
             $command = sprintf(
-                'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
                 escapeshellarg($flvUrl),
                 $duration,
                 escapeshellarg($tempFile)
@@ -150,6 +180,9 @@ if ($_POST) {
                                 <i class="fas fa-play me-2"></i>开始测试录制
                             </button>
                             
+                            <a href="flv_helper.php" class="btn btn-info ms-2">
+                                <i class="fas fa-question-circle me-2"></i>FLV地址获取帮助
+                            </a>
                             <a href="admin/video_order_detail.php?id=16" class="btn btn-secondary ms-2">
                                 <i class="fas fa-arrow-left me-2"></i>返回订单详情
                             </a>

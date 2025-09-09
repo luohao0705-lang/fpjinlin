@@ -437,13 +437,34 @@ class VideoProcessor {
     private function checkFlvUrl($flvUrl) {
         $context = stream_context_create([
             'http' => [
-                'timeout' => 10,
-                'method' => 'HEAD'
+                'timeout' => 5,
+                'method' => 'HEAD',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             ]
         ]);
         
         $headers = @get_headers($flvUrl, 1, $context);
-        return $headers && strpos($headers[0], '200') !== false;
+        if ($headers) {
+            $statusCode = $headers[0];
+            // 接受200、302、403等状态码
+            if (strpos($statusCode, '200') !== false || 
+                strpos($statusCode, '302') !== false || 
+                strpos($statusCode, '403') !== false) {
+                return true;
+            }
+        }
+        
+        // 如果HEAD请求失败，尝试GET请求（只获取少量数据）
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 5,
+                'method' => 'GET',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            ]
+        ]);
+        
+        $testData = @file_get_contents($flvUrl, false, $context, 0, 1024);
+        return $testData !== false && strlen($testData) > 0;
     }
     
     /**
@@ -452,8 +473,9 @@ class VideoProcessor {
     private function recordFlvStream($flvUrl, $outputFile) {
         $maxDuration = $this->config['max_duration'];
         
+        // 针对抖音等直播平台的FLV流优化参数
         $command = sprintf(
-            'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+            'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
             escapeshellarg($flvUrl),
             $maxDuration,
             escapeshellarg($outputFile)
