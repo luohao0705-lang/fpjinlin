@@ -66,22 +66,31 @@ class VideoProcessor {
             
             // 更新状态为录制中
             $this->updateVideoFileStatus($videoFileId, 'recording');
+            $this->updateRecordingProgress($videoFileId, 0, '开始录制', 'recording');
             
             // 检查FFmpeg是否可用
             if (!$this->checkFFmpeg()) {
                 throw new Exception('FFmpeg未安装或不可用');
             }
             
+            $this->updateRecordingProgress($videoFileId, 10, '检查FFmpeg环境', 'recording');
+            
             // 检查FLV地址是否可访问
             if (!$this->checkFlvUrl($flvUrl)) {
                 throw new Exception('FLV地址不可访问: ' . $flvUrl);
             }
             
+            $this->updateRecordingProgress($videoFileId, 20, '验证FLV地址', 'recording');
+            
             // 生成临时文件名
             $tempFile = sys_get_temp_dir() . '/video_' . $videoFileId . '_' . time() . '.mp4';
             
-            // 使用FFmpeg录制FLV流
-            $this->recordFlvStream($flvUrl, $tempFile);
+            $this->updateRecordingProgress($videoFileId, 30, '准备录制环境', 'recording');
+            
+            // 使用FFmpeg录制FLV流（带进度监控）
+            $this->recordFlvStreamWithProgress($flvUrl, $tempFile, $videoFileId);
+            
+            $this->updateRecordingProgress($videoFileId, 80, '录制完成，处理文件', 'recording');
             
             // 检查录制文件
             if (!file_exists($tempFile) || filesize($tempFile) === 0) {
@@ -96,17 +105,21 @@ class VideoProcessor {
                 $videoInfo['duration'] = $this->config['max_duration'];
             }
             
+            $this->updateRecordingProgress($videoFileId, 90, '上传到存储', 'recording');
+            
             // 上传到OSS
             $ossKey = $this->uploadToOss($tempFile, "videos/{$videoFileId}/original.mp4");
             
             // 更新数据库
             $this->db->query(
-                "UPDATE video_files SET oss_key = ?, file_size = ?, duration = ?, resolution = ?, status = 'completed' WHERE id = ?",
+                "UPDATE video_files SET oss_key = ?, file_size = ?, duration = ?, resolution = ?, status = 'completed', recording_progress = 100, recording_status = 'completed', recording_completed_at = NOW() WHERE id = ?",
                 [$ossKey, filesize($tempFile), $videoInfo['duration'], $videoInfo['resolution'], $videoFileId]
             );
             
             // 清理临时文件
             unlink($tempFile);
+            
+            $this->updateRecordingProgress($videoFileId, 100, '录制完成', 'completed');
             
             error_log("✅ 视频录制完成: {$videoFileId}, 时长: {$videoInfo['duration']}秒, 分辨率: {$videoInfo['resolution']}");
             return true;
@@ -114,6 +127,7 @@ class VideoProcessor {
         } catch (Exception $e) {
             error_log("❌ 视频录制失败: {$videoFileId} - " . $e->getMessage());
             $this->updateVideoFileStatus($videoFileId, 'failed', $e->getMessage());
+            $this->updateRecordingProgress($videoFileId, 0, '录制失败: ' . $e->getMessage(), 'failed');
             throw $e;
         }
     }
@@ -498,5 +512,129 @@ class VideoProcessor {
         }
         
         error_log("✅ FFmpeg录制成功: {$outputFile}");
+    }
+    
+    /**
+     * 录制FLV流（带进度监控）
+     */
+    private function recordFlvStreamWithProgress($flvUrl, $outputFile, $videoFileId) {
+        $maxDuration = $this->config['max_duration'];
+        
+        // 针对抖音等直播平台的FLV流优化参数
+        $command = sprintf(
+            'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y -progress -',
+            escapeshellarg($flvUrl),
+            $maxDuration,
+            escapeshellarg($outputFile)
+        );
+        
+        error_log("🔧 执行FFmpeg命令: {$command}");
+        
+        // 使用proc_open来实时监控进度
+        $descriptorspec = array(
+            0 => array("pipe", "r"),  // stdin
+            1 => array("pipe", "w"),  // stdout
+            2 => array("pipe", "w")   // stderr
+        );
+        
+        $process = proc_open($command, $descriptorspec, $pipes);
+        
+        if (is_resource($process)) {
+            fclose($pipes[0]); // 关闭stdin
+            
+            $startTime = time();
+            $lastProgress = 30;
+            
+            while (($line = fgets($pipes[1])) !== false) {
+                // 解析FFmpeg进度输出
+                if (strpos($line, 'out_time_ms=') !== false) {
+                    preg_match('/out_time_ms=(\d+)/', $line, $matches);
+                    if (isset($matches[1])) {
+                        $currentTime = intval($matches[1]) / 1000000; // 转换为秒
+                        $progress = min(30 + intval(($currentTime / $maxDuration) * 50), 80);
+                        
+                        if ($progress > $lastProgress) {
+                            $this->updateRecordingProgress($videoFileId, $progress, "录制中... {$currentTime}s", 'recording');
+                            $lastProgress = $progress;
+                        }
+                    }
+                }
+                
+                if (strpos($line, 'size=') !== false) {
+                    preg_match('/size=(\d+)/', $line, $matches);
+                    if (isset($matches[1])) {
+                        $fileSize = intval($matches[1]);
+                        $this->logRecordingProgress($videoFileId, $lastProgress, "录制中... 文件大小: " . $this->formatFileSize($fileSize), intval($currentTime ?? 0), $fileSize);
+                    }
+                }
+            }
+            
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            
+            $returnCode = proc_close($process);
+            
+            if ($returnCode !== 0) {
+                throw new Exception('FFmpeg录制失败，返回码: ' . $returnCode);
+            }
+        } else {
+            // 如果proc_open不可用，回退到普通录制
+            $this->recordFlvStream($flvUrl, $outputFile);
+        }
+        
+        if (!file_exists($outputFile) || filesize($outputFile) === 0) {
+            throw new Exception('录制文件生成失败');
+        }
+        
+        error_log("✅ FFmpeg录制成功: {$outputFile}");
+    }
+    
+    /**
+     * 更新录制进度
+     */
+    private function updateRecordingProgress($videoFileId, $progress, $message, $status) {
+        try {
+            // 更新video_files表
+            $this->db->query(
+                "UPDATE video_files SET recording_progress = ?, recording_status = ? WHERE id = ?",
+                [$progress, $status, $videoFileId]
+            );
+            
+            // 记录进度日志
+            $this->logRecordingProgress($videoFileId, $progress, $message);
+            
+            error_log("📊 录制进度更新: 文件ID {$videoFileId}, 进度 {$progress}%, 状态: {$message}");
+        } catch (Exception $e) {
+            error_log("❌ 更新录制进度失败: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 记录录制进度日志
+     */
+    private function logRecordingProgress($videoFileId, $progress, $message, $duration = null, $fileSize = null) {
+        try {
+            $this->db->query(
+                "INSERT INTO recording_progress_logs (video_file_id, progress, message, duration, file_size, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                [$videoFileId, $progress, $message, $duration, $fileSize]
+            );
+        } catch (Exception $e) {
+            error_log("❌ 记录进度日志失败: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 格式化文件大小
+     */
+    private function formatFileSize($bytes) {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $unitIndex = 0;
+        
+        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
+            $bytes /= 1024;
+            $unitIndex++;
+        }
+        
+        return round($bytes, 2) . ' ' . $units[$unitIndex];
     }
 }

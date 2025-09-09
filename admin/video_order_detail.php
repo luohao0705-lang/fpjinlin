@@ -437,6 +437,18 @@ function getApiQuota($service) {
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        <!-- 录制进度显示 -->
+                                        <div class="mt-3">
+                                            <h6>录制进度</h6>
+                                            <div id="recordingProgressContainer">
+                                                <div class="text-center">
+                                                    <div class="spinner-border text-info" role="status">
+                                                        <span class="visually-hidden">加载中...</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -543,14 +555,111 @@ function getApiQuota($service) {
             });
         }
         
+        // 加载录制进度
+        function loadRecordingProgress() {
+            $.get('api/recording_progress.php?order_id=<?php echo $orderId; ?>', function(data) {
+                if (data.success) {
+                    displayRecordingProgress(data.data);
+                }
+            }).fail(function() {
+                $('#recordingProgressContainer').html('<div class="alert alert-danger">加载录制进度失败</div>');
+            });
+        }
+        
+        // 显示录制进度
+        function displayRecordingProgress(data) {
+            if (!data || data.length === 0) {
+                $('#recordingProgressContainer').html('<div class="text-muted">暂无录制进度信息</div>');
+                return;
+            }
+            
+            let html = '';
+            data.forEach(function(videoFile) {
+                const statusClass = getRecordingStatusClass(videoFile.recording_status);
+                const progress = videoFile.recording_progress || 0;
+                const message = videoFile.latest_progress ? videoFile.latest_progress.message : '等待开始';
+                
+                html += `
+                    <div class="card mb-2">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge ${statusClass}">${getRecordingStatusText(videoFile.recording_status)}</span>
+                                <small class="text-muted">${videoFile.video_type === 'self' ? '本方视频' : '同行视频' + videoFile.video_index}</small>
+                            </div>
+                            <div class="progress mb-2" style="height: 20px;">
+                                <div class="progress-bar ${getProgressBarClass(videoFile.recording_status)}" 
+                                     role="progressbar" style="width: ${progress}%" 
+                                     aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                                    ${progress}%
+                                </div>
+                            </div>
+                            <div class="small text-muted">
+                                ${message}
+                                ${videoFile.duration ? ` | 时长: ${videoFile.duration}秒` : ''}
+                                ${videoFile.file_size ? ` | 大小: ${formatFileSize(videoFile.file_size)}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            $('#recordingProgressContainer').html(html);
+        }
+        
+        // 获取录制状态样式类
+        function getRecordingStatusClass(status) {
+            switch(status) {
+                case 'recording': return 'bg-primary';
+                case 'completed': return 'bg-success';
+                case 'failed': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+        
+        // 获取录制状态文本
+        function getRecordingStatusText(status) {
+            switch(status) {
+                case 'pending': return '等待录制';
+                case 'recording': return '录制中';
+                case 'completed': return '录制完成';
+                case 'failed': return '录制失败';
+                default: return '未知状态';
+            }
+        }
+        
+        // 获取进度条样式类
+        function getProgressBarClass(status) {
+            switch(status) {
+                case 'recording': return 'progress-bar-striped progress-bar-animated';
+                case 'completed': return 'bg-success';
+                case 'failed': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let unitIndex = 0;
+            while (bytes >= 1024 && unitIndex < units.length - 1) {
+                bytes /= 1024;
+                unitIndex++;
+            }
+            return Math.round(bytes * 100) / 100 + ' ' + units[unitIndex];
+        }
+        
         // 页面加载完成后开始定时刷新
         $(document).ready(function() {
             loadProgress();
+            loadRecordingProgress();
             loadAIUsage();
             loadTaskMonitor();
             
             // 每5秒刷新一次进度
             setInterval(loadProgress, 5000);
+            // 每3秒刷新录制进度
+            setInterval(loadRecordingProgress, 3000);
             // 每2秒更新任务监控
             setInterval(loadTaskMonitor, 2000);
         });
