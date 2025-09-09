@@ -9,13 +9,20 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-// 设置错误处理函数
-set_error_handler(function($severity, $message, $file, $line) {
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
+// 设置错误处理函数（仅在非AJAX请求时）
+if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest') {
+    set_error_handler(function($severity, $message, $file, $line) {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    });
+}
 
 require_once '../config/config.php';
 require_once '../config/database.php';
+
+// 启动session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // 检查管理员登录
 if (!isset($_SESSION['admin_id'])) {
