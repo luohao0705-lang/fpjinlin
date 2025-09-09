@@ -444,16 +444,28 @@ class VideoProcessor {
         $output = [];
         $returnCode = 0;
         $ffmpegFound = false;
+        $ffmpegPath = '';
         
         // 尝试不同的FFmpeg命令（支持Linux和Windows）
-        $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
+        $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/ffmpeg/bin/ffmpeg', 'ffmpeg.exe'];
         
         foreach ($ffmpegCommands as $cmd) {
             exec($cmd . ' -version 2>&1', $output, $returnCode);
             if ($returnCode === 0) {
                 $ffmpegFound = true;
+                $ffmpegPath = $cmd;
                 break;
             }
+        }
+        
+        if (!$ffmpegFound) {
+            error_log("❌ FFmpeg未找到，尝试的命令: " . implode(', ', $ffmpegCommands));
+            error_log("❌ 最后执行的命令返回码: {$returnCode}");
+            if (!empty($output)) {
+                error_log("❌ 最后执行的命令输出: " . implode("\n", $output));
+            }
+        } else {
+            error_log("✅ FFmpeg找到: {$ffmpegPath}");
         }
         
         return $ffmpegFound;

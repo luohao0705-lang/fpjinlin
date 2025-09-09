@@ -46,21 +46,125 @@ try {
         $ffmpegPath = 'ffmpeg';
     }
     
+    // 尝试多种方式查找FFmpeg
+    $ffmpegFound = false;
+    $ffmpegLocation = '';
+    
+    // 方法1: which命令
     $ffmpegCheck = shell_exec("which {$ffmpegPath} 2>/dev/null");
-    if ($ffmpegCheck) {
-        echo "<p>✅ FFmpeg 路径: " . trim($ffmpegCheck) . "</p>";
+    if ($ffmpegCheck && trim($ffmpegCheck)) {
+        $ffmpegFound = true;
+        $ffmpegLocation = trim($ffmpegCheck);
+    }
+    
+    // 方法2: whereis命令
+    if (!$ffmpegFound) {
+        $ffmpegCheck = shell_exec("whereis {$ffmpegPath} 2>/dev/null");
+        if ($ffmpegCheck && strpos($ffmpegCheck, '/') !== false) {
+            $parts = explode(' ', $ffmpegCheck);
+            if (count($parts) > 1) {
+                $ffmpegFound = true;
+                $ffmpegLocation = $parts[1];
+            }
+        }
+    }
+    
+    // 方法3: 直接测试命令
+    if (!$ffmpegFound) {
+        $testOutput = [];
+        $testCode = 0;
+        exec("{$ffmpegPath} -version 2>&1", $testOutput, $testCode);
+        if ($testCode === 0 && !empty($testOutput)) {
+            $ffmpegFound = true;
+            $ffmpegLocation = $ffmpegPath;
+        }
+    }
+    
+    // 方法4: 常见路径
+    if (!$ffmpegFound) {
+        $commonPaths = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/opt/ffmpeg/bin/ffmpeg',
+            '/usr/bin/ffmpeg-static/ffmpeg'
+        ];
+        
+        foreach ($commonPaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                $ffmpegFound = true;
+                $ffmpegLocation = $path;
+                break;
+            }
+        }
+    }
+    
+    if ($ffmpegFound) {
+        echo "<p>✅ FFmpeg 路径: " . htmlspecialchars($ffmpegLocation) . "</p>";
+        
+        // 测试FFmpeg版本
+        $versionOutput = [];
+        exec("{$ffmpegLocation} -version 2>&1", $versionOutput);
+        if (!empty($versionOutput)) {
+            echo "<p>FFmpeg 版本: " . htmlspecialchars($versionOutput[0]) . "</p>";
+        }
     } else {
         echo "<p>❌ FFmpeg 未找到</p>";
+        echo "<p>请安装FFmpeg或检查路径配置</p>";
     }
     
     // 测试录制
-    echo "<p>开始测试录制...</p>";
+    if ($ffmpegFound) {
+        echo "<p>开始测试录制...</p>";
+        
+        // 直接测试FFmpeg命令
+        $maxDuration = 10; // 只录制10秒用于测试
+        $outputFile = sys_get_temp_dir() . '/test_recording_' . time() . '.mp4';
+        
+        $command = sprintf(
+            '%s -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y',
+            escapeshellarg($ffmpegLocation),
+            escapeshellarg($flvUrl),
+            $maxDuration,
+            escapeshellarg($outputFile)
+        );
+        
+        echo "<p>执行命令: " . htmlspecialchars($command) . "</p>";
+        
+        $startTime = time();
+        $output = [];
+        $returnCode = 0;
+        exec($command . ' 2>&1', $output, $returnCode);
+        $endTime = time();
+        
+        if ($returnCode === 0) {
+            if (file_exists($outputFile) && filesize($outputFile) > 0) {
+                echo "<p>✅ 录制成功！</p>";
+                echo "<p>文件大小: " . formatFileSize(filesize($outputFile)) . "</p>";
+                echo "<p>耗时: " . ($endTime - $startTime) . " 秒</p>";
+                
+                // 清理测试文件
+                unlink($outputFile);
+            } else {
+                echo "<p>❌ 录制文件生成失败</p>";
+            }
+        } else {
+            echo "<p>❌ FFmpeg执行失败，返回码: {$returnCode}</p>";
+            echo "<p>错误输出:</p>";
+            echo "<pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+        }
+    } else {
+        echo "<p>❌ 无法测试录制，FFmpeg未找到</p>";
+    }
     
-    $startTime = time();
-    $processor->recordVideo(999, $flvUrl); // 使用虚拟ID
-    $endTime = time();
-    
-    echo "<p>✅ 录制完成，耗时: " . ($endTime - $startTime) . " 秒</p>";
+    // 辅助函数
+    function formatFileSize($bytes) {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+        return round($bytes, 2) . ' ' . $units[$pow];
+    }
     
 } catch (Exception $e) {
     echo "<p style='color: red;'>❌ 错误: " . htmlspecialchars($e->getMessage()) . "</p>";
