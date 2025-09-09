@@ -148,6 +148,19 @@ class WhisperService {
     }
     
     /**
+     * 获取订单的所有转录文本
+     * @param int $orderId 订单ID
+     * @return array 转录文本数组
+     */
+    public function getOrderTranscripts($orderId) {
+        $transcripts = $this->db->fetchAll(
+            "SELECT vt.transcript_text FROM video_transcripts vt JOIN video_files vf ON vt.video_file_id = vf.id WHERE vf.order_id = ? ORDER BY vf.video_index, vt.segment_index",
+            [$orderId]
+        );
+        return array_column($transcripts, 'transcript_text');
+    }
+    
+    /**
      * 保存识别结果到数据库
      */
     private function saveTranscriptResults($segmentId, $transcriptResult) {

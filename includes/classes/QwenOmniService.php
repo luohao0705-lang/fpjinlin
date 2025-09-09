@@ -204,6 +204,19 @@ class QwenOmniService {
     }
     
     /**
+     * 获取订单的所有分析结果
+     * @param int $orderId 订单ID
+     * @return array 分析结果数组
+     */
+    public function getOrderAnalysisResults($orderId) {
+        $results = $this->db->fetchAll(
+            "SELECT var.analysis_result FROM video_analysis_results var JOIN video_segments vs ON var.video_segment_id = vs.id JOIN video_files vf ON vs.video_file_id = vf.id WHERE vf.order_id = ? ORDER BY vf.video_index, vs.segment_index",
+            [$orderId]
+        );
+        return array_column($results, 'analysis_result');
+    }
+    
+    /**
      * 保存分析结果
      */
     private function saveAnalysisResults($segmentId, $analysisResult) {

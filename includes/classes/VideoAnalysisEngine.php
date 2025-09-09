@@ -190,63 +190,52 @@ class VideoAnalysisEngine {
      * 构建最终报告提示词
      */
     private function buildFinalReportPrompt($reportData) {
-        $prompt = "你是一位专业的直播带货分析师，请根据以下视频分析数据生成一份详细的直播复盘分析报告：\n\n";
+        // 获取订单信息
+        $orderId = $reportData['order_info']['id'];
         
-        $prompt .= "## 分析数据概览\n";
-        $prompt .= "- 订单ID: {$reportData['order_info']['id']}\n";
-        $prompt .= "- 分析标题: {$reportData['order_info']['title']}\n";
-        $prompt .= "- 视频数量: " . count($reportData['analysis_results']) . "个切片\n";
-        $prompt .= "- 生成时间: {$reportData['generated_at']}\n\n";
-        
-        $prompt .= "## 分析结果数据\n";
-        foreach ($reportData['analysis_results'] as $index => $result) {
-            $prompt .= "### 切片" . ($index + 1) . "\n";
-            $prompt .= "- 时间范围: {$result['segment_start']}-{$result['segment_end']}\n";
-            $prompt .= "- 视频类型: {$result['video_type']}\n";
-            $prompt .= "- 分析结果: " . json_encode($result['result_data'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        // 获取所有视频文件的转录文本
+        $transcripts = $this->db->fetchAll(
+            "SELECT vt.transcript_text FROM video_transcripts vt JOIN video_files vf ON vt.video_file_id = vf.id WHERE vf.order_id = ? ORDER BY vf.video_index, vt.segment_index",
+            [$orderId]
+        );
+
+        $fullTranscript = "";
+        if (!empty($transcripts)) {
+            foreach ($transcripts as $t) {
+                $fullTranscript .= $t['transcript_text'] . "\n";
+            }
+        } else {
+            $fullTranscript = "No transcripts available for this order.";
         }
-        
-        $prompt .= "## 报告要求\n";
-        $prompt .= "请按照以下结构生成专业的分析报告：\n\n";
-        
-        $prompt .= "### 1. 执行摘要\n";
-        $prompt .= "- 分析概述\n";
-        $prompt .= "- 关键发现\n";
-        $prompt .= "- 总体评分(0-100分)\n\n";
-        
-        $prompt .= "### 2. 时间线分析\n";
-        $prompt .= "- 每2-5分钟总结一次\n";
-        $prompt .= "- 话术变化趋势\n";
-        $prompt .= "- 互动效果分析\n\n";
-        
-        $prompt .= "### 3. 主播表现分析\n";
-        $prompt .= "- 情绪曲线分析\n";
-        $prompt .= "- 语速节奏分析\n";
-        $prompt .= "- 肢体动作分析\n";
-        $prompt .= "- 镜头感分析\n\n";
-        
-        $prompt .= "### 4. 话术结构分析\n";
-        $prompt .= "- 开场话术效果\n";
-        $prompt .= "- 卖点介绍完整性\n";
-        $prompt .= "- 价格策略分析\n";
-        $prompt .= "- 互动引导效果\n";
-        $prompt .= "- 收尾话术分析\n\n";
-        
-        $prompt .= "### 5. 商品演示分析\n";
-        $prompt .= "- 演示方式分析\n";
-        $prompt .= "- 镜头配合效果\n";
-        $prompt .= "- 证据化程度\n";
-        $prompt .= "- 演示完整性\n\n";
-        
-        $prompt .= "### 6. 场景氛围分析\n";
-        $prompt .= "- 灯光效果分析\n";
-        $prompt .= "- 背景布置分析\n";
-        $prompt .= "- 音效分析\n";
-        $prompt .= "- 整体氛围评价\n\n";
-        
-        $prompt .= "### 7. 风险合规检查\n";
-        $prompt .= "- 敏感词汇识别\n";
-        $prompt .= "- 违规内容检查\n";
+
+        // 获取所有视频分析结果
+        $analysisResults = $this->db->fetchAll(
+            "SELECT var.analysis_result FROM video_analysis_results var JOIN video_segments vs ON var.video_segment_id = vs.id JOIN video_files vf ON vs.video_file_id = vf.id WHERE vf.order_id = ? ORDER BY vf.video_index, vs.segment_index",
+            [$orderId]
+        );
+
+        $combinedAnalysis = "";
+        if (!empty($analysisResults)) {
+            foreach ($analysisResults as $ar) {
+                $combinedAnalysis .= $ar['analysis_result'] . "\n";
+            }
+        } else {
+            $combinedAnalysis = "No segment analysis results available for this order.";
+        }
+
+        // 构建最终的报告提示
+        $prompt = "请根据以下直播视频的转录文本和分段分析结果，生成一份全面的直播复盘报告。报告应包含以下几个部分：\n\n";
+        $prompt .= "1. **直播概览**：简要总结直播内容和主题。\n";
+        $prompt .= "2. **关键亮点**：提取直播中最精彩、最吸引人的瞬间或内容。\n";
+        $prompt .= "3. **用户互动分析**：根据转录文本中提及的互动内容，分析用户参与度。\n";
+        $prompt .= "4. **内容优化建议**：基于分析结果，提出未来直播内容或形式的改进建议。\n";
+        $prompt .= "5. **潜在风险提示**：指出直播中可能存在的敏感词、不当言论或潜在风险点。\n\n";
+        $prompt .= "--- 原始数据 ---\n\n";
+        $prompt .= "### 直播转录文本:\n" . $fullTranscript . "\n\n";
+        $prompt .= "### 分段分析结果:\n" . $combinedAnalysis . "\n\n";
+        $prompt .= "请确保报告内容客观、准确，并具有可操作性。";
+
+        return $prompt;
         $prompt .= "- 改进建议\n\n";
         
         $prompt .= "### 8. 同行对比分析\n";

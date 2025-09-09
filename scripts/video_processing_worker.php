@@ -129,6 +129,8 @@ class VideoProcessingWorker {
      */
     private function executeTask($task) {
         switch ($task['task_type']) {
+            case 'record':
+                return $this->executeRecordTask($task);
             case 'download':
                 return $this->executeDownloadTask($task);
             case 'transcode':
@@ -144,6 +146,34 @@ class VideoProcessingWorker {
             default:
                 throw new Exception("未知任务类型: {$task['task_type']}");
         }
+    }
+    
+    /**
+     * 执行录制任务
+     */
+    private function executeRecordTask($task) {
+        $taskData = json_decode($task['task_data'], true);
+        $videoFileId = $taskData['video_file_id'] ?? null;
+        
+        if (!$videoFileId) {
+            throw new Exception("Record task missing video_file_id.");
+        }
+        
+        $videoFile = $this->db->fetchOne("SELECT * FROM video_files WHERE id = ?", [$videoFileId]);
+        if (!$videoFile || empty($videoFile['flv_url'])) {
+            throw new Exception("Video file or FLV URL not found for recording: " . $videoFileId);
+        }
+
+        error_log("Worker: Starting record task for video_file_id: " . $videoFileId . ", FLV: " . $videoFile['flv_url']);
+        
+        $videoProcessor = new VideoProcessor();
+        $success = $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
+        
+        if (!$success) {
+            throw new Exception("Video recording failed for video_file_id: " . $videoFileId);
+        }
+        
+        return true;
     }
     
     /**

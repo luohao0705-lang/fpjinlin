@@ -49,6 +49,22 @@ class User {
      * 用户登录
      */
     public function login($phone, $password) {
+        $user = $this->db->fetchOne("SELECT * FROM users WHERE phone = ?", [$phone]);
+
+        if ($user && password_verify($password, $user['password_hash'])) {
+            // 登录成功，设置会话
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['phone'];
+            $_SESSION['is_admin'] = (bool)$user['is_admin'];
+            $_SESSION['last_login'] = date('Y-m-d H:i:s');
+
+            // 更新数据库中的最后登录时间
+            $this->db->query("UPDATE users SET last_login = NOW() WHERE id = ?", [$user['id']]);
+
+            return true;
+        }
+
+        return false; // 登录失败
         $user = $this->getUserByPhone($phone);
         
         if (!$user) {

@@ -214,7 +214,84 @@ class AnalysisOrder {
      * 启动后台分析处理
      */
     private function startBackgroundAnalysis($orderId) {
-        try {
+        // 确保 order_id 是有效的
+        if (!is_numeric($orderId) || $orderId <= 0) {
+            error_log("Invalid order ID provided for background analysis: " . $orderId);
+            return false;
+        }
+
+        // 获取当前PHP解释器的路径
+        $phpPath = $this->getPhpCliPath();
+        if (!$phpPath) {
+            error_log("PHP CLI path not found. Cannot start background analysis for order: " . $orderId);
+            return false;
+        }
+
+        // 构建后台执行命令
+        $scriptPath = dirname(__DIR__, 2) . '/scripts/process_analysis.php';
+        if (!file_exists($scriptPath)) {
+            error_log("Background processing script not found: " . $scriptPath);
+            return false;
+        }
+
+        // 在Linux/Unix系统上使用 & 将进程放入后台
+        $command = sprintf(
+            '%s %s %d > /dev/null 2>&1 &',
+            escapeshellarg($phpPath),
+            escapeshellarg($scriptPath),
+            $orderId
+        );
+
+        // 记录尝试启动后台任务
+        error_log("Attempting to start background analysis for order ID: " . $orderId . " with command: " . $command);
+
+        // 执行命令
+        exec($command, $output, $return_var);
+
+        if ($return_var === 0) {
+            error_log("Background analysis started successfully for order ID: " . $orderId);
+            return true;
+        } else {
+            error_log("Failed to start background analysis for order ID: " . $orderId . ". Return var: " . $return_var . ". Output: " . implode("\n", $output));
+            return false;
+        }
+    }
+
+    /**
+     * 尝试获取PHP CLI解释器的路径
+     * @return string|false PHP CLI路径或false
+     */
+    private function getPhpCliPath() {
+        // 尝试从环境变量获取
+        $phpPath = getenv('PHP_CLI_PATH');
+        if ($phpPath && file_exists($phpPath) && is_executable($phpPath)) {
+            return $phpPath;
+        }
+
+        // 尝试常见的Linux路径
+        $commonPaths = [
+            '/usr/bin/php',
+            '/usr/local/bin/php',
+            '/opt/lampp/bin/php', // XAMPP
+            '/etc/alternatives/php'
+        ];
+        foreach ($commonPaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        // 尝试使用 `which php` 命令 (仅限Linux/Unix)
+        $whichPhp = shell_exec('which php');
+        if ($whichPhp) {
+            $whichPhp = trim($whichPhp);
+            if (file_exists($whichPhp) && is_executable($whichPhp)) {
+                return $whichPhp;
+            }
+        }
+
+        error_log("Could not find PHP CLI path.");
+        return false;try {
             error_log("尝试启动后台分析处理：订单ID {$orderId}");
             
             // 检查exec函数是否可用

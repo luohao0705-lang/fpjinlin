@@ -15,7 +15,20 @@ class StorageManager {
             'oss_secret_key' => getSystemConfig('oss_secret_key', ''),
         ];
         
-        $this->localBasePath = '/www/wwwroot/hsh6.com/storage';
+        $this->localBasePath = dirname(__DIR__, 2) . '/storage';
+        
+        // 验证OSS配置
+        if (!$this->isOssConfigured()) {
+            error_log("StorageManager: OSS configuration is invalid. Falling back to local storage.");
+        }
+        
+        // 确保本地存储路径存在且可写
+        if (!is_dir($this->localBasePath)) {
+            if (!mkdir($this->localBasePath, 0777, true)) {
+                error_log("StorageManager: Failed to create local storage base path: " . $this->localBasePath);
+                throw new Exception("Storage system initialization failed: Local storage path cannot be created.");
+            }
+        }
     }
     
     /**
@@ -252,9 +265,20 @@ class StorageManager {
      */
     private function generateOssSignature($method, $ossKey) {
         $date = gmdate('D, d M Y H:i:s \G\M\T');
-        $stringToSign = "{$method}\n\n{$this->getContentType('')}\n{$date}\n/{$this->config['oss_bucket']}/{$ossKey}";
+        $contentType = $this->getContentType($ossKey);
+        $stringToSign = "{$method}\n\n{$contentType}\n{$date}\n/{$this->config['oss_bucket']}/{$ossKey}";
         
         return base64_encode(hash_hmac('sha1', $stringToSign, $this->config['oss_secret_key'], true));
+    }
+    
+    /**
+     * 检查OSS是否配置
+     */
+    private function isOssConfigured() {
+        return !empty($this->config['oss_bucket']) && 
+               !empty($this->config['oss_endpoint']) && 
+               !empty($this->config['oss_access_key']) && 
+               !empty($this->config['oss_secret_key']);
     }
 }
 ?>
