@@ -102,10 +102,42 @@ try {
             
             // 测试录制
             try {
+                echo "<p>开始录制测试...</p>";
                 $processor->recordVideo($firstFile['id'], $testVideoFile);
                 echo "<p>✅ 录制功能测试成功！</p>";
             } catch (Exception $e) {
                 echo "<p>❌ 录制功能测试失败: " . htmlspecialchars($e->getMessage()) . "</p>";
+                echo "<p>错误详情: " . htmlspecialchars($e->getTraceAsString()) . "</p>";
+                
+                // 直接测试FFmpeg命令
+                echo "<p>直接测试FFmpeg命令...</p>";
+                $ffmpegPath = 'ffmpeg';
+                $outputFile = sys_get_temp_dir() . '/test_direct_' . time() . '.mp4';
+                
+                $command = sprintf(
+                    '%s -i %s -t 5 -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y',
+                    escapeshellarg($ffmpegPath),
+                    escapeshellarg($testVideoFile),
+                    escapeshellarg($outputFile)
+                );
+                
+                echo "<p>执行命令: " . htmlspecialchars($command) . "</p>";
+                
+                $output = [];
+                $returnCode = 0;
+                exec($command . ' 2>&1', $output, $returnCode);
+                
+                if ($returnCode === 0) {
+                    echo "<p>✅ 直接FFmpeg命令执行成功</p>";
+                    if (file_exists($outputFile)) {
+                        echo "<p>输出文件大小: " . formatFileSize(filesize($outputFile)) . "</p>";
+                        unlink($outputFile);
+                    }
+                } else {
+                    echo "<p>❌ 直接FFmpeg命令也失败，返回码: {$returnCode}</p>";
+                    echo "<p>错误输出:</p>";
+                    echo "<pre>" . htmlspecialchars(implode("\n", $output)) . "</pre>";
+                }
             }
         }
         
@@ -129,5 +161,15 @@ try {
     echo "<p style='color: red;'>❌ 错误: " . htmlspecialchars($e->getMessage()) . "</p>";
     echo "<p>文件: " . $e->getFile() . "</p>";
     echo "<p>行号: " . $e->getLine() . "</p>";
+}
+
+// 辅助函数
+function formatFileSize($bytes) {
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    $bytes /= pow(1024, $pow);
+    return round($bytes, 2) . ' ' . $units[$pow];
 }
 ?>
