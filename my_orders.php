@@ -235,7 +235,10 @@ $userInfo = $user->getUserById($_SESSION['user_id']);
                     <td>
                         <div class="btn-group btn-group-sm">
                             ${order.status === 'completed' ? 
-                                `<a href="report.php?id=${order.id}" class="btn btn-primary">查看报告</a>` : 
+                                (order.order_type === 'video' ? 
+                                    `<a href="video_report.php?id=${order.id}" class="btn btn-primary">查看报告</a>` : 
+                                    `<a href="report.php?id=${order.id}" class="btn btn-primary">查看报告</a>`
+                                ) : 
                                 `<span class="btn btn-outline-secondary disabled">分析中...</span>`
                             }
                         </div>

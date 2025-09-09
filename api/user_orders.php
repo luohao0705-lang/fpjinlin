@@ -55,9 +55,14 @@ try {
     
     // 如果是限制数量（首页使用）
     if ($limit > 0) {
-        $orders = (new Database())->fetchAll(
-            "SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at 
+        $db = new Database();
+        $orders = $db->fetchAll(
+            "SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at, 'text' as order_type
              FROM analysis_orders 
+             {$whereClause}
+             UNION ALL
+             SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at, 'video' as order_type
+             FROM video_analysis_orders 
              {$whereClause}
              ORDER BY created_at DESC 
              LIMIT ?",
@@ -69,37 +74,36 @@ try {
             'orders' => $orders
         ]);
     } else {
-        // 正常分页查询
-        $analysisOrder = new AnalysisOrder();
-        $result = $analysisOrder->getUserOrders($userId, $page, $pageSize);
+        // 正常分页查询 - 合并文本分析和视频分析订单
+        $db = new Database();
+        $offset = ($page - 1) * $pageSize;
         
-        // 应用额外的筛选条件
-        if (!empty($status) || !empty($dateFilter) || !empty($titleSearch)) {
-            $db = new Database();
-            $offset = ($page - 1) * $pageSize;
-            
-            $orders = $db->fetchAll(
-                "SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at 
-                 FROM analysis_orders 
-                 {$whereClause}
-                 ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?",
-                array_merge($params, [$pageSize, $offset])
-            );
-            
-            $total = $db->fetchOne(
-                "SELECT COUNT(*) as count FROM analysis_orders {$whereClause}",
-                $params
-            )['count'];
-            
-            $result = [
-                'orders' => $orders,
-                'total' => $total,
-                'page' => $page,
-                'pageSize' => $pageSize,
-                'totalPages' => ceil($total / $pageSize)
-            ];
-        }
+        $orders = $db->fetchAll(
+            "SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at, 'text' as order_type
+             FROM analysis_orders 
+             {$whereClause}
+             UNION ALL
+             SELECT id, order_no, title, status, cost_coins, report_score, report_level, created_at, completed_at, 'video' as order_type
+             FROM video_analysis_orders 
+             {$whereClause}
+             ORDER BY created_at DESC 
+             LIMIT ? OFFSET ?",
+            array_merge($params, [$pageSize, $offset])
+        );
+        
+        $total = $db->fetchOne(
+            "SELECT (SELECT COUNT(*) FROM analysis_orders {$whereClause}) + 
+                    (SELECT COUNT(*) FROM video_analysis_orders {$whereClause}) as count",
+            $params
+        )['count'];
+        
+        $result = [
+            'orders' => $orders,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'totalPages' => ceil($total / $pageSize)
+        ];
         
         jsonResponse([
             'success' => true,
