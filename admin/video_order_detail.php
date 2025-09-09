@@ -282,6 +282,25 @@ function getApiQuota($service) {
                     </div>
                 </div>
 
+                <!-- AI服务使用量 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI服务使用量</h5>
+                            </div>
+                            <div class="card-body" id="ai-usage-container">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="sr-only">加载中...</span>
+                                    </div>
+                                    <p class="text-muted mt-2">正在查询AI服务使用量...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 视频链接信息 -->
                 <div class="row mb-4">
                     <div class="col-12">
@@ -514,10 +533,64 @@ function getApiQuota($service) {
         // 页面加载完成后开始定时刷新
         $(document).ready(function() {
             loadProgress();
+            loadAIUsage();
             
             // 每5秒刷新一次进度
             setInterval(loadProgress, 5000);
         });
+        
+        // 加载AI服务使用量
+        function loadAIUsage() {
+            $.get('api/ai_usage.php?order_id=<?php echo $orderId; ?>', function(response) {
+                if (response.success) {
+                    displayAIUsage(response.data);
+                } else {
+                    $('#ai-usage-container').html(`
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                            <p>加载失败: ${response.message}</p>
+                        </div>
+                    `);
+                }
+            }).fail(function() {
+                $('#ai-usage-container').html(`
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-wifi fa-2x mb-2"></i>
+                        <p>网络错误，请稍后重试</p>
+                    </div>
+                `);
+            });
+        }
+        
+        // 显示AI服务使用量
+        function displayAIUsage(usage) {
+            if (usage.length === 0) {
+                $('#ai-usage-container').html(`
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>暂无AI服务使用记录</p>
+                    </div>
+                `);
+                return;
+            }
+            
+            let html = '<div class="table-responsive"><table class="table table-hover">';
+            html += '<thead><tr><th>服务名称</th><th>使用量</th><th>费用</th><th>使用时间</th></tr></thead><tbody>';
+            
+            usage.forEach(item => {
+                html += `
+                    <tr>
+                        <td><span class="badge bg-primary">${item.service_name}</span></td>
+                        <td>${item.usage_amount} ${item.usage_unit || 'tokens'}</td>
+                        <td>¥${item.cost_amount || '0.00'}</td>
+                        <td><small class="text-muted">${item.created_at}</small></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            $('#ai-usage-container').html(html);
+        }
     </script>
 </body>
 </html>

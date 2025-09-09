@@ -336,8 +336,28 @@ $todayUsers = $db->fetchOne("SELECT COUNT(*) as today_users FROM users WHERE DAT
                         </div>
                     </div>
                 </div>
+                
+                <!-- AI服务额度 -->
+                <div class="col-xl-4 col-lg-5">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-robot me-2"></i>AI服务额度
+                            </h6>
+                        </div>
+                        <div class="card-body" id="ai-quotas-container">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">加载中...</span>
+                                </div>
+                                <p class="text-muted mt-2">正在查询AI服务额度...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <!-- 最新订单 -->
+            <!-- 最新订单 -->
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary">
@@ -372,6 +392,7 @@ $todayUsers = $db->fetchOne("SELECT COUNT(*) as today_users FROM users WHERE DAT
         $(document).ready(function() {
             loadRecentOrders();
             initOrderTrendChart();
+            loadAIQuotas();
         });
         
         // 加载最新订单
@@ -465,6 +486,66 @@ $todayUsers = $db->fetchOne("SELECT COUNT(*) as today_users FROM users WHERE DAT
                     });
                 }
             });
+        }
+        
+        // 加载AI服务额度
+        function loadAIQuotas() {
+            $.get('api/ai_quotas.php', function(response) {
+                if (response.success) {
+                    displayAIQuotas(response.data);
+                } else {
+                    $('#ai-quotas-container').html(`
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
+                            <p>加载失败</p>
+                        </div>
+                    `);
+                }
+            }).fail(function() {
+                $('#ai-quotas-container').html(`
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-wifi fa-2x mb-2"></i>
+                        <p>网络错误</p>
+                    </div>
+                `);
+            });
+        }
+        
+        // 显示AI服务额度
+        function displayAIQuotas(quotas) {
+            let html = '';
+            
+            Object.values(quotas).forEach(quota => {
+                const statusClass = quota.status === 'active' ? 'text-success' : 
+                                  quota.status === 'unlimited' ? 'text-info' : 
+                                  quota.status === 'disabled' ? 'text-muted' : 'text-danger';
+                
+                const statusIcon = quota.status === 'active' ? 'fa-check-circle' : 
+                                 quota.status === 'unlimited' ? 'fa-infinity' : 
+                                 quota.status === 'disabled' ? 'fa-times-circle' : 'fa-exclamation-triangle';
+                
+                html += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">${quota.service}</span>
+                            <i class="fas ${statusIcon} ${statusClass}"></i>
+                        </div>
+                        <div class="mt-1">
+                            ${quota.status === 'unlimited' ? 
+                                '<small class="text-info">无限制</small>' : 
+                                quota.status === 'disabled' ? 
+                                '<small class="text-muted">未配置</small>' :
+                                `<small class="text-muted">剩余: ${quota.remaining.toLocaleString()} / ${quota.total.toLocaleString()}</small>`
+                            }
+                        </div>
+                        <div class="mt-1">
+                            <small class="text-muted">${quota.message}</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            $('#ai-quotas-container').html(html);
         }
         
         // 状态映射函数
