@@ -517,7 +517,7 @@ class VideoProcessor {
         $maxDuration = $this->config['max_duration'];
         
         // 判断输入是FLV流还是本地文件
-        $isLocalFile = file_exists($flvUrl) || strpos($flvUrl, 'http') !== 0;
+        $isLocalFile = file_exists($flvUrl);
         
         if ($isLocalFile) {
             // 本地文件，使用简单参数
@@ -563,7 +563,7 @@ class VideoProcessor {
         $maxDuration = $this->config['max_duration'];
         
         // 判断输入是FLV流还是本地文件
-        $isLocalFile = file_exists($flvUrl) || strpos($flvUrl, 'http') !== 0;
+        $isLocalFile = file_exists($flvUrl);
         
         if ($isLocalFile) {
             // 本地文件，使用简单参数
