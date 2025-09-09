@@ -137,12 +137,25 @@ if ($_POST) {
                                     <?php
                                     $ffmpegOutput = [];
                                     $ffmpegReturnCode = 0;
-                                    exec('ffmpeg -version 2>&1', $ffmpegOutput, $ffmpegReturnCode);
-                                    if ($ffmpegReturnCode === 0): ?>
+                                    $ffmpegFound = false;
+                                    
+                                    // 尝试不同的FFmpeg命令（Linux优先）
+                                    $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
+                                    
+                                    foreach ($ffmpegCommands as $cmd) {
+                                        exec($cmd . ' -version 2>&1', $ffmpegOutput, $ffmpegReturnCode);
+                                        if ($ffmpegReturnCode === 0) {
+                                            $ffmpegFound = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if ($ffmpegFound): ?>
                                         <span class="badge bg-success ms-2">已安装</span>
                                         <small class="text-muted"><?php echo htmlspecialchars($ffmpegOutput[0] ?? ''); ?></small>
                                     <?php else: ?>
                                         <span class="badge bg-danger ms-2">未安装</span>
+                                        <small class="text-muted">请安装FFmpeg并确保在PATH中</small>
                                     <?php endif; ?>
                                 </li>
                             </ul>

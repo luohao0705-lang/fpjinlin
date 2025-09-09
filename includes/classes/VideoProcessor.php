@@ -421,8 +421,20 @@ class VideoProcessor {
     private function checkFFmpeg() {
         $output = [];
         $returnCode = 0;
-        exec('ffmpeg -version 2>&1', $output, $returnCode);
-        return $returnCode === 0;
+        $ffmpegFound = false;
+        
+        // 尝试不同的FFmpeg命令（支持Linux和Windows）
+        $ffmpegCommands = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', 'ffmpeg.exe'];
+        
+        foreach ($ffmpegCommands as $cmd) {
+            exec($cmd . ' -version 2>&1', $output, $returnCode);
+            if ($returnCode === 0) {
+                $ffmpegFound = true;
+                break;
+            }
+        }
+        
+        return $ffmpegFound;
     }
     
     /**
