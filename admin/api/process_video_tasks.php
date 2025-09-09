@@ -59,46 +59,102 @@ try {
             // 根据任务类型进行处理
             switch ($task['task_type']) {
                 case 'record':
-                    // 录制FLV流
+                    // 真正录制FLV流
                     $videoFile = $db->fetchOne(
                         "SELECT * FROM video_files WHERE id = ?",
                         [$taskData['video_file_id']]
                     );
                     
-                    if ($videoFile && $videoFile['flv_url']) {
-                        // 模拟录制完成（实际项目中应该调用VideoProcessor）
+                    if (!$videoFile) {
+                        throw new Exception('视频文件不存在: ID ' . $taskData['video_file_id']);
+                    }
+                    
+                    if (empty($videoFile['flv_url'])) {
+                        throw new Exception('FLV地址为空，请先在后台配置FLV地址');
+                    }
+                    
+                    // 更新任务状态为处理中
+                    $db->query(
+                        "UPDATE video_processing_queue SET status = 'processing', started_at = NOW() WHERE id = ?",
+                        [$task['id']]
+                    );
+                    
+                    try {
+                        require_once '../../includes/classes/VideoProcessor.php';
+                        $videoProcessor = new VideoProcessor();
+                        
+                        // 真正执行录制
+                        $videoProcessor->recordVideo($videoFile['id'], $videoFile['flv_url']);
+                        error_log("✅ 录制完成: 视频文件ID {$videoFile['id']}, FLV地址: {$videoFile['flv_url']}");
+                    } catch (Exception $e) {
+                        // 更新任务状态为失败
                         $db->query(
-                            "UPDATE video_files SET status = 'completed' WHERE id = ?",
-                            [$videoFile['id']]
+                            "UPDATE video_processing_queue SET status = 'failed', error_message = ? WHERE id = ?",
+                            [$e->getMessage(), $task['id']]
                         );
-                        error_log("模拟录制完成: 视频文件ID {$videoFile['id']}, FLV地址: {$videoFile['flv_url']}");
-                    } else {
-                        throw new Exception('视频文件或FLV地址不存在');
+                        throw $e;
                     }
                     break;
                     
                 case 'transcode':
-                    // 转码处理
-                    $db->query(
-                        "UPDATE video_files SET status = 'completed' WHERE id = ?",
-                        [$taskData['video_file_id']]
-                    );
+                    // 真正转码处理
+                    require_once '../../includes/classes/VideoProcessor.php';
+                    $videoProcessor = new VideoProcessor();
+                    $videoProcessor->transcodeVideo($taskData['video_file_id']);
+                    error_log("✅ 转码完成: 视频文件ID {$taskData['video_file_id']}");
                     break;
                     
                 case 'segment':
-                    // 切片处理
-                    $db->query(
-                        "UPDATE video_files SET status = 'completed' WHERE id = ?",
-                        [$taskData['video_file_id']]
-                    );
+                    // 真正切片处理
+                    require_once '../../includes/classes/VideoProcessor.php';
+                    $videoProcessor = new VideoProcessor();
+                    $videoProcessor->segmentVideo($taskData['video_file_id']);
+                    error_log("✅ 切片完成: 视频文件ID {$taskData['video_file_id']}");
                     break;
                     
                 case 'asr':
-                    // 语音识别处理
+                    // 真正语音识别处理
+                    require_once '../../includes/classes/WhisperService.php';
+                    $whisperService = new WhisperService();
+                    
+                    // 获取该视频文件的所有切片
+                    $segments = $db->fetchAll(
+                        "SELECT vs.* FROM video_segments vs 
+                         WHERE vs.video_file_id = ? AND vs.status = 'completed'",
+                        [$taskData['video_file_id']]
+                    );
+                    
+                    foreach ($segments as $segment) {
+                        $whisperService->processSegment($segment['id']);
+                    }
+                    error_log("✅ 语音识别完成: 视频文件ID {$taskData['video_file_id']}");
                     break;
                     
                 case 'analysis':
-                    // 视频分析处理
+                    // 真正视频分析处理
+                    require_once '../../includes/classes/QwenOmniService.php';
+                    $qwenOmniService = new QwenOmniService();
+                    
+                    // 获取该订单的所有切片
+                    $segments = $db->fetchAll(
+                        "SELECT vs.* FROM video_segments vs 
+                         LEFT JOIN video_files vf ON vs.video_file_id = vf.id 
+                         WHERE vf.order_id = ? AND vs.status = 'completed'",
+                        [$task['order_id']]
+                    );
+                    
+                    foreach ($segments as $segment) {
+                        $qwenOmniService->analyzeSegment($segment['id']);
+                    }
+                    error_log("✅ 视频分析完成: 订单ID {$task['order_id']}");
+                    break;
+                    
+                case 'report':
+                    // 真正生成报告
+                    require_once '../../includes/classes/VideoAnalysisEngine.php';
+                    $videoAnalysisEngine = new VideoAnalysisEngine();
+                    $videoAnalysisEngine->processVideoAnalysis($task['order_id']);
+                    error_log("✅ 报告生成完成: 订单ID {$task['order_id']}");
                     break;
             }
             

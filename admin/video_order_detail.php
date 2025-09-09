@@ -417,6 +417,14 @@ function getApiQuota($service) {
                                                 <i class="fas fa-cogs me-2"></i>处理任务
                                             </button>
                                             
+                                            <button type="button" class="btn btn-info" id="systemCheckBtn">
+                                                <i class="fas fa-stethoscope me-2"></i>系统检查
+                                            </button>
+                                            
+                                            <a href="../../test_flv_recording.php" class="btn btn-success" target="_blank">
+                                                <i class="fas fa-video me-2"></i>测试录制
+                                            </a>
+                                            
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -539,9 +547,12 @@ function getApiQuota($service) {
         $(document).ready(function() {
             loadProgress();
             loadAIUsage();
+            loadTaskMonitor();
             
             // 每5秒刷新一次进度
             setInterval(loadProgress, 5000);
+            // 每2秒更新任务监控
+            setInterval(loadTaskMonitor, 2000);
         });
         
         // 加载AI服务使用量
@@ -604,20 +615,192 @@ function getApiQuota($service) {
             
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>处理中...');
             
+            // 显示处理状态
+            showProcessingStatus('开始处理任务...');
+            
             $.get('api/process_video_tasks.php?order_id=<?php echo $orderId; ?>', function(response) {
                 if (response.success) {
-                    alert('任务处理完成：' + response.message + '，处理了 ' + response.processed + ' 个任务');
+                    showProcessingStatus('✅ 任务处理完成：' + response.message + '，处理了 ' + response.processed + ' 个任务');
                     // 刷新进度
                     loadProgress();
                 } else {
-                    alert('任务处理失败：' + response.message);
+                    showProcessingStatus('❌ 任务处理失败：' + response.message, 'error');
                 }
-            }).fail(function() {
-                alert('网络错误，请稍后重试');
+            }).fail(function(xhr) {
+                let errorMsg = '网络错误，请稍后重试';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+                showProcessingStatus('❌ ' + errorMsg, 'error');
             }).always(function() {
                 btn.prop('disabled', false).html(originalText);
             });
         });
+        
+        // 系统检查
+        $('#systemCheckBtn').click(function() {
+            const btn = $(this);
+            const originalText = btn.html();
+            
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>检查中...');
+            
+            $.get('api/system_check.php', function(response) {
+                if (response.success) {
+                    showSystemCheckResults(response.data);
+                } else {
+                    showProcessingStatus('❌ 系统检查失败：' + response.message, 'error');
+                }
+            }).fail(function() {
+                showProcessingStatus('❌ 系统检查网络错误', 'error');
+            }).always(function() {
+                btn.prop('disabled', false).html(originalText);
+            });
+        });
+        
+        // 显示系统检查结果
+        function showSystemCheckResults(checks) {
+            let html = '<div class="modal fade" id="systemCheckModal" tabindex="-1">';
+            html += '<div class="modal-dialog modal-lg">';
+            html += '<div class="modal-content">';
+            html += '<div class="modal-header">';
+            html += '<h5 class="modal-title"><i class="fas fa-stethoscope me-2"></i>系统检查结果</h5>';
+            html += '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>';
+            html += '</div>';
+            html += '<div class="modal-body">';
+            
+            Object.keys(checks).forEach(key => {
+                const check = checks[key];
+                const statusIcon = check.status === 'ok' ? 'fa-check-circle text-success' : 
+                                 check.status === 'warning' ? 'fa-exclamation-triangle text-warning' : 
+                                 'fa-times-circle text-danger';
+                const statusText = check.status === 'ok' ? '正常' : 
+                                 check.status === 'warning' ? '警告' : '错误';
+                
+                html += '<div class="row mb-3">';
+                html += '<div class="col-3"><strong>' + check.name + '</strong></div>';
+                html += '<div class="col-2"><i class="fas ' + statusIcon + ' me-1"></i>' + statusText + '</div>';
+                html += '<div class="col-7">' + check.message + '</div>';
+                html += '</div>';
+                
+                if (check.details) {
+                    html += '<div class="row mb-3">';
+                    html += '<div class="col-12"><small class="text-muted">' + check.details + '</small></div>';
+                    html += '</div>';
+                }
+            });
+            
+            html += '</div>';
+            html += '<div class="modal-footer">';
+            html += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>';
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+            
+            // 移除已存在的模态框
+            $('#systemCheckModal').remove();
+            
+            // 添加新的模态框
+            $('body').append(html);
+            
+            // 显示模态框
+            $('#systemCheckModal').modal('show');
+        }
+        
+        // 加载任务监控
+        function loadTaskMonitor() {
+            $.get('api/task_monitor.php?order_id=<?php echo $orderId; ?>', function(response) {
+                if (response.success) {
+                    displayTaskMonitor(response.data);
+                }
+            }).fail(function() {
+                // 静默失败，不影响其他功能
+            });
+        }
+        
+        // 显示任务监控
+        function displayTaskMonitor(data) {
+            const { tasks, task_stats, progress, current_task, failed_tasks } = data;
+            
+            // 更新进度条
+            $('.progress-bar').css('width', progress + '%').text(progress + '%');
+            
+            // 更新任务统计
+            let statsHtml = `
+                <div class="row text-center">
+                    <div class="col-2"><span class="badge bg-secondary">总计: ${task_stats.total}</span></div>
+                    <div class="col-2"><span class="badge bg-warning">待处理: ${task_stats.pending}</span></div>
+                    <div class="col-2"><span class="badge bg-info">处理中: ${task_stats.processing}</span></div>
+                    <div class="col-2"><span class="badge bg-success">已完成: ${task_stats.completed}</span></div>
+                    <div class="col-2"><span class="badge bg-danger">失败: ${task_stats.failed}</span></div>
+                </div>
+            `;
+            
+            if (current_task) {
+                statsHtml += `
+                    <div class="mt-2">
+                        <small class="text-info">
+                            <i class="fas fa-cog fa-spin me-1"></i>
+                            当前处理: ${getTaskTypeName(current_task.task_type)}
+                        </small>
+                    </div>
+                `;
+            }
+            
+            if (failed_tasks.length > 0) {
+                statsHtml += `
+                    <div class="mt-2">
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            失败任务: ${failed_tasks.length} 个
+                        </small>
+                    </div>
+                `;
+            }
+            
+            // 更新任务统计显示
+            if ($('#task-stats').length === 0) {
+                $('#progress-container').after('<div id="task-stats" class="mt-3"></div>');
+            }
+            $('#task-stats').html(statsHtml);
+        }
+        
+        // 获取任务类型名称
+        function getTaskTypeName(taskType) {
+            const typeNames = {
+                'record': '录制视频',
+                'transcode': '转码处理',
+                'segment': '视频切片',
+                'asr': '语音识别',
+                'analysis': 'AI分析',
+                'report': '生成报告'
+            };
+            return typeNames[taskType] || taskType;
+        }
+        
+        // 显示处理状态
+        function showProcessingStatus(message, type = 'info') {
+            const alertClass = type === 'error' ? 'alert-danger' : 'alert-info';
+            const statusHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // 在页面顶部显示状态
+            if ($('.processing-status').length === 0) {
+                $('.main-content').prepend('<div class="processing-status"></div>');
+            }
+            $('.processing-status').html(statusHtml);
+            
+            // 自动隐藏成功消息
+            if (type !== 'error') {
+                setTimeout(() => {
+                    $('.processing-status .alert').fadeOut();
+                }, 5000);
+            }
+        }
         
     </script>
 </body>

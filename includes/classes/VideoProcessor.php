@@ -62,16 +62,31 @@ class VideoProcessor {
      */
     public function recordVideo($videoFileId, $flvUrl) {
         try {
-            error_log("开始录制视频: {$flvUrl}");
+            error_log("🎬 开始录制视频: {$flvUrl}");
             
             // 更新状态为录制中
             $this->updateVideoFileStatus($videoFileId, 'recording');
+            
+            // 检查FFmpeg是否可用
+            if (!$this->checkFFmpeg()) {
+                throw new Exception('FFmpeg未安装或不可用');
+            }
+            
+            // 检查FLV地址是否可访问
+            if (!$this->checkFlvUrl($flvUrl)) {
+                throw new Exception('FLV地址不可访问: ' . $flvUrl);
+            }
             
             // 生成临时文件名
             $tempFile = sys_get_temp_dir() . '/video_' . $videoFileId . '_' . time() . '.mp4';
             
             // 使用FFmpeg录制FLV流
             $this->recordFlvStream($flvUrl, $tempFile);
+            
+            // 检查录制文件
+            if (!file_exists($tempFile) || filesize($tempFile) === 0) {
+                throw new Exception('录制文件生成失败');
+            }
             
             // 获取视频信息
             $videoInfo = $this->getVideoInfo($tempFile);
@@ -93,11 +108,11 @@ class VideoProcessor {
             // 清理临时文件
             unlink($tempFile);
             
-            error_log("视频录制完成: {$videoFileId}");
+            error_log("✅ 视频录制完成: {$videoFileId}, 时长: {$videoInfo['duration']}秒, 分辨率: {$videoInfo['resolution']}");
             return true;
             
         } catch (Exception $e) {
-            error_log("视频录制失败: {$videoFileId} - " . $e->getMessage());
+            error_log("❌ 视频录制失败: {$videoFileId} - " . $e->getMessage());
             $this->updateVideoFileStatus($videoFileId, 'failed', $e->getMessage());
             throw $e;
         }
@@ -401,6 +416,31 @@ class VideoProcessor {
     }
     
     /**
+     * 检查FFmpeg是否可用
+     */
+    private function checkFFmpeg() {
+        $output = [];
+        $returnCode = 0;
+        exec('ffmpeg -version 2>&1', $output, $returnCode);
+        return $returnCode === 0;
+    }
+    
+    /**
+     * 检查FLV地址是否可访问
+     */
+    private function checkFlvUrl($flvUrl) {
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 10,
+                'method' => 'HEAD'
+            ]
+        ]);
+        
+        $headers = @get_headers($flvUrl, 1, $context);
+        return $headers && strpos($headers[0], '200') !== false;
+    }
+    
+    /**
      * 录制FLV流
      */
     private function recordFlvStream($flvUrl, $outputFile) {
@@ -413,16 +453,22 @@ class VideoProcessor {
             escapeshellarg($outputFile)
         );
         
+        error_log("🔧 执行FFmpeg命令: {$command}");
+        
         $output = [];
         $returnCode = 0;
         exec($command . ' 2>&1', $output, $returnCode);
         
         if ($returnCode !== 0) {
-            throw new Exception('FFmpeg录制失败: ' . implode("\n", $output));
+            $errorMsg = implode("\n", $output);
+            error_log("❌ FFmpeg录制失败: {$errorMsg}");
+            throw new Exception('FFmpeg录制失败: ' . $errorMsg);
         }
         
         if (!file_exists($outputFile) || filesize($outputFile) === 0) {
             throw new Exception('录制文件生成失败');
         }
+        
+        error_log("✅ FFmpeg录制成功: {$outputFile}");
     }
 }
