@@ -14,7 +14,7 @@ try {
     // 1. 检查待处理任务
     echo "1. 待处理任务:\n";
     $pendingTasks = $db->fetchAll("
-        SELECT t.id, t.order_id, t.task_type, t.status, t.created_at, o.flv_url 
+        SELECT t.id, t.order_id, t.task_type, t.status, t.created_at, o.self_flv_url 
         FROM video_processing_queue t 
         LEFT JOIN video_analysis_orders o ON t.order_id = o.id 
         WHERE t.status = 'pending' 
@@ -26,7 +26,7 @@ try {
     } else {
         echo "⚠️ 有 " . count($pendingTasks) . " 个待处理任务:\n";
         foreach ($pendingTasks as $task) {
-            echo "  - 任务ID: {$task['id']}, 订单ID: {$task['order_id']}, 类型: {$task['task_type']}, FLV: " . (empty($task['flv_url']) ? '无' : '有') . "\n";
+            echo "  - 任务ID: {$task['id']}, 订单ID: {$task['order_id']}, 类型: {$task['task_type']}, FLV: " . (empty($task['self_flv_url']) ? '无' : '有') . "\n";
         }
     }
     

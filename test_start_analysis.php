@@ -16,25 +16,35 @@ try {
     echo "1. 创建测试订单...\n";
     $testFlvUrl = "https://live.douyin.com/test?expire=" . (time() + 3600);
     
-    $orderId = $db->insert('video_analysis_orders', [
-        'user_id' => 1,
-        'live_url' => 'https://live.douyin.com/test',
-        'flv_url' => $testFlvUrl,
-        'status' => 'reviewing',
-        'created_at' => date('Y-m-d H:i:s')
-    ]);
+    $orderId = $db->insert(
+        "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, self_flv_url, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        [
+            1, 
+            'VA' . date('YmdHis') . rand(1000, 9999),
+            '测试分析订单',
+            'https://live.douyin.com/test',
+            $testFlvUrl,
+            50,
+            'reviewing'
+        ]
+    );
     
     echo "✅ 创建测试订单: ID $orderId\n";
     
     // 2. 创建视频文件记录
     echo "2. 创建视频文件记录...\n";
-    $videoFileId = $db->insert('video_files', [
-        'order_id' => $orderId,
-        'flv_url' => $testFlvUrl,
-        'status' => 'pending',
-        'recording_status' => 'pending',
-        'created_at' => date('Y-m-d H:i:s')
-    ]);
+    $videoFileId = $db->insert(
+        "INSERT INTO video_files (order_id, video_type, video_index, original_url, flv_url, status, recording_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
+        [
+            $orderId,
+            'self',
+            0,
+            'https://live.douyin.com/test',
+            $testFlvUrl,
+            'pending',
+            'pending'
+        ]
+    );
     
     echo "✅ 创建视频文件记录: ID $videoFileId\n";
     

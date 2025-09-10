@@ -13,9 +13,9 @@ try {
     
     // 1. 检查视频分析订单
     echo "1. 视频分析订单状态:\n";
-    $orders = $db->fetchAll("SELECT id, status, flv_url, created_at FROM video_analysis_orders ORDER BY id DESC LIMIT 5");
+    $orders = $db->fetchAll("SELECT id, status, self_flv_url, created_at FROM video_analysis_orders ORDER BY id DESC LIMIT 5");
     foreach ($orders as $order) {
-        echo "订单ID: {$order['id']}, 状态: {$order['status']}, FLV: " . (empty($order['flv_url']) ? '无' : '有') . ", 创建时间: {$order['created_at']}\n";
+        echo "订单ID: {$order['id']}, 状态: {$order['status']}, FLV: " . (empty($order['self_flv_url']) ? '无' : '有') . ", 创建时间: {$order['created_at']}\n";
     }
     
     // 2. 检查视频文件
