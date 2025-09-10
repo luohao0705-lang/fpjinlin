@@ -314,7 +314,7 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 启动视频分析 - 极简版本，只专注于录制
+     * 启动视频分析 - 使用严谨的处理系统
      */
     public function startAnalysis($orderId) {
         try {
@@ -333,26 +333,29 @@ class VideoAnalysisOrder {
                 throw new Exception('请先填写FLV地址');
             }
             
-            // 使用简单录制器
-            require_once 'SimpleRecorder.php';
-            $recorder = new SimpleRecorder();
+            // 使用严谨的视频处理系统
+            require_once 'StrictVideoProcessor.php';
+            $processor = new StrictVideoProcessor();
             
-            // 开始录制
-            $result = $recorder->recordVideo($orderId, $order['self_flv_url'], 60);
+            // 开始严谨的视频处理
+            $result = $processor->startAnalysis($orderId);
             
             if ($result['success']) {
+                // 更新订单状态为处理中
+                $this->updateOrderStatus($orderId, 'processing');
+                
                 return [
                     'success' => true,
-                    'message' => '录制完成！',
-                    'file_path' => $result['file_path'],
-                    'file_size' => $result['file_size'],
-                    'duration' => $result['duration']
+                    'message' => '视频分析流程已启动！',
+                    'order_id' => $orderId
                 ];
             } else {
-                throw new Exception($result['error']);
+                throw new Exception($result['message'] ?? '启动失败');
             }
             
         } catch (Exception $e) {
+            // 更新订单状态为失败
+            $this->updateOrderStatus($orderId, 'failed', null, null, null, $e->getMessage());
             throw $e;
         }
     }
