@@ -314,13 +314,13 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 启动视频分析 - 使用统一处理器
+     * 启动视频分析 - 使用最终统一处理器
      */
     public function startAnalysis($orderId) {
         try {
-            // 使用统一的视频处理系统
-            require_once dirname(__DIR__, 2) . '/UnifiedVideoProcessor.php';
-            $processor = new UnifiedVideoProcessor();
+            // 使用最终统一的视频处理系统
+            require_once dirname(__DIR__, 2) . '/FinalVideoProcessor.php';
+            $processor = new FinalVideoProcessor();
             
             // 开始视频处理
             $result = $processor->startAnalysis($orderId);

@@ -79,18 +79,18 @@ class SimpleRecorder {
         $isDouyinFlv = strpos($flvUrl, 'douyincdn.com') !== false;
         
         if ($isDouyinFlv) {
-            echo "检测到抖音FLV地址，使用特殊参数...\n";
-            // 抖音FLV需要特殊的User-Agent和Referer
+            echo "检测到抖音FLV地址，使用转码参数...\n";
+            // 抖音FLV需要转码，不能使用-c copy
             $command = sprintf(
-                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c copy -avoid_negative_ts make_zero -fflags +genpts %s -y 2>&1',
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart -avoid_negative_ts make_zero -fflags +genpts %s -y 2>&1',
                 escapeshellarg($flvUrl),
                 $maxDuration,
                 escapeshellarg($outputFile)
             );
         } else {
-            // 普通视频源使用简单参数
+            // 普通视频源使用转码参数
             $command = sprintf(
-                'ffmpeg -i %s -t %d -c copy %s -y 2>&1',
+                'ffmpeg -i %s -t %d -c:v libx264 -preset fast -crf 23 -c:a aac -ac 2 -ar 44100 -movflags +faststart %s -y 2>&1',
                 escapeshellarg($flvUrl),
                 $maxDuration,
                 escapeshellarg($outputFile)
