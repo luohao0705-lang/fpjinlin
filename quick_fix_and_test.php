@@ -3,6 +3,21 @@
  * 快速修复和测试脚本
  */
 
+// 设置错误报告
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// 检查文件是否存在
+if (!file_exists('config/config.php')) {
+    echo "❌ 缺少配置文件: config/config.php\n";
+    exit(1);
+}
+
+if (!file_exists('config/database.php')) {
+    echo "❌ 缺少数据库配置: config/database.php\n";
+    exit(1);
+}
+
 require_once 'config/config.php';
 require_once 'config/database.php';
 
