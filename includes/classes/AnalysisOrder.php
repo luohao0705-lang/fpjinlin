@@ -291,7 +291,11 @@ class AnalysisOrder {
         }
 
         error_log("Could not find PHP CLI path.");
-        return false;try {
+        return false;
+    }
+    
+    private function startBackgroundAnalysisOld($orderId) {
+        try {
             error_log("尝试启动后台分析处理：订单ID {$orderId}");
             
             // 检查exec函数是否可用
