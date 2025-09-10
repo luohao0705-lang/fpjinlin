@@ -319,7 +319,7 @@ class VideoAnalysisOrder {
     public function startAnalysis($orderId) {
         try {
             // 使用统一的视频处理系统
-            require_once 'UnifiedVideoProcessor.php';
+            require_once dirname(__DIR__, 2) . '/UnifiedVideoProcessor.php';
             $processor = new UnifiedVideoProcessor();
             
             // 开始视频处理

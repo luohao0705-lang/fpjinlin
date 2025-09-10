@@ -131,7 +131,7 @@ class UnifiedVideoProcessor {
         echo "==================\n";
         
         // 使用SimpleRecorder
-        require_once 'SimpleRecorder.php';
+        require_once __DIR__ . '/SimpleRecorder.php';
         $recorder = new SimpleRecorder();
         
         // 录制60秒
