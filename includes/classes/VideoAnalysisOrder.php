@@ -314,48 +314,20 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 启动视频分析 - 使用严谨的处理系统
+     * 启动视频分析 - 使用统一处理器
      */
     public function startAnalysis($orderId) {
         try {
-            // 检查订单状态
-            $order = $this->getOrderById($orderId);
-            if (!$order) {
-                throw new Exception('订单不存在');
-            }
+            // 使用统一的视频处理系统
+            require_once 'UnifiedVideoProcessor.php';
+            $processor = new UnifiedVideoProcessor();
             
-            if (!in_array($order['status'], ['reviewing', 'processing', 'failed', 'stopped'])) {
-                throw new Exception('订单状态不允许启动分析');
-            }
-            
-            // 检查是否已填写FLV地址
-            if (empty($order['self_flv_url'])) {
-                throw new Exception('请先填写FLV地址');
-            }
-            
-            // 使用严谨的视频处理系统
-            require_once 'StrictVideoProcessor.php';
-            $processor = new StrictVideoProcessor();
-            
-            // 开始严谨的视频处理
+            // 开始视频处理
             $result = $processor->startAnalysis($orderId);
             
-            if ($result['success']) {
-                // 更新订单状态为处理中
-                $this->updateOrderStatus($orderId, 'processing');
-                
-                return [
-                    'success' => true,
-                    'message' => '视频分析流程已启动！',
-                    'order_id' => $orderId
-                ];
-            } else {
-                throw new Exception($result['message'] ?? '启动失败');
-            }
+            return $result;
             
         } catch (Exception $e) {
-            // 更新订单状态为失败
-            $this->updateOrderStatus($orderId, 'failed', null, null, null, $e->getMessage());
             throw $e;
         }
     }
