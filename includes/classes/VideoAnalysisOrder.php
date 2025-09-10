@@ -314,11 +314,9 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 启动视频分析
+     * 启动视频分析 - 极简版本，只专注于录制
      */
     public function startAnalysis($orderId) {
-        $this->db->beginTransaction();
-        
         try {
             // 检查订单状态
             $order = $this->getOrderById($orderId);
@@ -331,36 +329,30 @@ class VideoAnalysisOrder {
             }
             
             // 检查是否已填写FLV地址
-            $videoFiles = $this->db->fetchAll(
-                "SELECT * FROM video_files WHERE order_id = ? AND (flv_url IS NULL OR flv_url = '')",
-                [$orderId]
-            );
-            
-            if (!empty($videoFiles)) {
-                throw new Exception('请先填写所有视频的FLV地址');
+            if (empty($order['self_flv_url'])) {
+                throw new Exception('请先填写FLV地址');
             }
             
-            // 如果状态是reviewing或stopped，可以开始分析
-            if (in_array($order['status'], ['reviewing', 'stopped'])) {
-                // 更新订单状态为处理中
-                $this->updateOrderStatus($orderId, 'processing');
+            // 使用简单录制器
+            require_once 'SimpleRecorder.php';
+            $recorder = new SimpleRecorder();
+            
+            // 开始录制
+            $result = $recorder->recordVideo($orderId, $order['self_flv_url'], 60);
+            
+            if ($result['success']) {
+                return [
+                    'success' => true,
+                    'message' => '录制完成！',
+                    'file_path' => $result['file_path'],
+                    'file_size' => $result['file_size'],
+                    'duration' => $result['duration']
+                ];
+            } else {
+                throw new Exception($result['error']);
             }
-            
-            // 创建处理任务
-            $this->createProcessingTasks($orderId);
-            
-            $this->db->commit();
-            
-            // 在事务外启动任务处理
-            $this->startProcessingTasks($orderId);
-            
-            return [
-                'success' => true,
-                'message' => '分析已启动，正在自动处理中...'
-            ];
             
         } catch (Exception $e) {
-            $this->db->rollback();
             throw $e;
         }
     }
