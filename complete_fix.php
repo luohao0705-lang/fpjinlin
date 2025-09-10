@@ -102,7 +102,7 @@ try {
              SET status = 'pending', error_message = NULL, retry_count = 0 
              WHERE status = 'failed'"
         );
-        echo "✅ 重置失败任务: " . $result1 . " 条\n";
+        echo "✅ 重置失败任务: " . $result1->rowCount() . " 条\n";
         
         // 重置处理中的任务
         $result2 = $db->query(
@@ -110,7 +110,7 @@ try {
              SET status = 'pending', error_message = NULL, retry_count = 0 
              WHERE status = 'processing'"
         );
-        echo "✅ 重置处理中任务: " . $result2 . " 条\n";
+        echo "✅ 重置处理中任务: " . $result2->rowCount() . " 条\n";
         
         // 重置视频文件状态
         $result3 = $db->query(
@@ -118,7 +118,7 @@ try {
              SET status = 'pending', recording_progress = 0, recording_status = 'pending' 
              WHERE status IN ('failed', 'recording')"
         );
-        echo "✅ 重置视频文件状态: " . $result3 . " 条\n";
+        echo "✅ 重置视频文件状态: " . $result3->rowCount() . " 条\n";
         
     } else {
         echo "❌ 无法清理任务，缺少数据库配置\n";
