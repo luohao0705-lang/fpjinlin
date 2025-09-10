@@ -75,13 +75,27 @@ class SimpleRecorder {
     private function doRecording($flvUrl, $outputFile, $maxDuration) {
         echo "📹 正在录制...\n";
         
-        // 构建FFmpeg命令 - 使用最简单的参数
-        $command = sprintf(
-            'ffmpeg -i %s -t %d -c copy %s -y 2>&1',
-            escapeshellarg($flvUrl),
-            $maxDuration,
-            escapeshellarg($outputFile)
-        );
+        // 检查是否是抖音FLV地址
+        $isDouyinFlv = strpos($flvUrl, 'douyincdn.com') !== false;
+        
+        if ($isDouyinFlv) {
+            echo "检测到抖音FLV地址，使用特殊参数...\n";
+            // 抖音FLV需要特殊的User-Agent和Referer
+            $command = sprintf(
+                'ffmpeg -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -headers "Referer: https://live.douyin.com/" -i %s -t %d -c copy -avoid_negative_ts make_zero -fflags +genpts %s -y 2>&1',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        } else {
+            // 普通视频源使用简单参数
+            $command = sprintf(
+                'ffmpeg -i %s -t %d -c copy %s -y 2>&1',
+                escapeshellarg($flvUrl),
+                $maxDuration,
+                escapeshellarg($outputFile)
+            );
+        }
         
         echo "执行命令: $command\n";
         

@@ -7,7 +7,7 @@ echo "🔍 测试FLV地址有效性\n";
 echo "==================\n\n";
 
 // 真实的抖音FLV地址
-$flvUrl = 'http://pull-flv-l26.douyincdn.com/stage/stream-117942867085230219_or4.flv?arch_hrchy=w1&exp_hrchy=w1&expire=68ca72c8&major_anchor_level=common&sign=cd8860b84c3036cd2c26dd2a823bc8e1&t_id=037-20250910163520ADAAF588E63A0EA9F691-hY5Ipv&unique_id=stream-117942867085230219_139_flv_or4';
+$flvUrl = 'http://pull-flv-l26.douyincdn.com/stage/stream-117942867085230219_or4.flv?arch_hrchy=w1&exp_hrchy=w1&expire=68ca7511&major_anchor_level=common&sign=8dedf99c273092e6389e3dbbad9ed1b2&t_id=037-20250910164505061DD0AF4B1E4DCD2B27-8zG4Wv&unique_id=stream-117942867085230219_139_flv_or4';
 
 echo "FLV地址: $flvUrl\n";
 echo "==================\n\n";
