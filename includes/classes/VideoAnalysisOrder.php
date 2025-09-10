@@ -698,7 +698,7 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 带诊断的录制任务处理
+     * 带诊断的录制任务处理 - 使用快速录制器
      */
     private function processRecordTaskWithDiagnostics($taskData, $taskId) {
         $videoFileId = $taskData['video_file_id'];
@@ -714,8 +714,27 @@ class VideoAnalysisOrder {
         // 检查系统资源
         $this->checkSystemResources();
         
-        $videoProcessor = new VideoProcessor();
-        $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
+        // 使用快速录制器
+        require_once 'FastLightweightRecorder.php';
+        $recorder = new FastLightweightRecorder();
+        
+        // 获取最大录制时长
+        $maxDuration = $this->getSystemConfig('max_video_duration', 3600);
+        
+        // 执行快速录制
+        $result = $recorder->recordVideo($videoFileId, $videoFile['flv_url'], $maxDuration);
+        
+        // 更新视频文件记录
+        $this->db->query(
+            "UPDATE video_files SET 
+             status = 'completed', 
+             file_path = ?, 
+             file_size = ?, 
+             duration = ?,
+             recording_completed_at = NOW()
+             WHERE id = ?",
+            [$result['file_path'], $result['file_size'], $result['duration'], $videoFileId]
+        );
     }
     
     /**
@@ -987,7 +1006,7 @@ class VideoAnalysisOrder {
     }
     
     /**
-     * 处理录制任务
+     * 处理录制任务 - 使用快速录制器
      */
     private function processRecordTask($taskData) {
         $videoFileId = $taskData['video_file_id'];
@@ -997,8 +1016,27 @@ class VideoAnalysisOrder {
             throw new Exception('视频文件或FLV地址不存在');
         }
         
-        $videoProcessor = new VideoProcessor();
-        $videoProcessor->recordVideo($videoFileId, $videoFile['flv_url']);
+        // 使用快速录制器
+        require_once 'FastLightweightRecorder.php';
+        $recorder = new FastLightweightRecorder();
+        
+        // 获取最大录制时长
+        $maxDuration = $this->getSystemConfig('max_video_duration', 3600);
+        
+        // 执行快速录制
+        $result = $recorder->recordVideo($videoFileId, $videoFile['flv_url'], $maxDuration);
+        
+        // 更新视频文件记录
+        $this->db->query(
+            "UPDATE video_files SET 
+             status = 'completed', 
+             file_path = ?, 
+             file_size = ?, 
+             duration = ?,
+             recording_completed_at = NOW()
+             WHERE id = ?",
+            [$result['file_path'], $result['file_size'], $result['duration'], $videoFileId]
+        );
     }
     
     /**

@@ -80,43 +80,27 @@ class VideoProcessor {
             $this->updateVideoFileStatus($videoFileId, 'recording');
             $this->updateRecordingProgress($videoFileId, 0, '开始录制', 'recording');
             
-            // 检查FFmpeg是否可用
-            if (!$this->checkFFmpeg()) {
-                throw new Exception('FFmpeg未安装或不可用');
-            }
+            // 使用快速轻量级录制器
+            require_once 'FastLightweightRecorder.php';
+            $recorder = new FastLightweightRecorder();
             
-            $this->updateRecordingProgress($videoFileId, 10, '检查FFmpeg环境', 'recording');
+            $this->updateRecordingProgress($videoFileId, 20, '使用快速录制器', 'recording');
             
-            // 跳过FLV地址检查，直接尝试录制（因为抖音FLV地址可能很快过期）
-            // 让FFmpeg自己处理连接问题
-            $this->updateRecordingProgress($videoFileId, 20, '准备录制FLV流', 'recording');
+            // 获取最大录制时长
+            $maxDuration = $this->config['max_duration'] ?? 3600;
             
-            // 生成临时文件名
-            $tempFile = sys_get_temp_dir() . '/video_' . $videoFileId . '_' . time() . '.mp4';
+            // 执行快速录制
+            $result = $recorder->recordVideo($videoFileId, $flvUrl, $maxDuration);
             
-            $this->updateRecordingProgress($videoFileId, 30, '准备录制环境', 'recording');
-            
-            // 使用FFmpeg录制FLV流（带进度监控和超时控制）
-            $this->recordFlvStreamWithTimeout($flvUrl, $tempFile, $videoFileId);
-            
-            // 确保录制完成后更新进度
             $this->updateRecordingProgress($videoFileId, 80, '录制完成，处理文件', 'recording');
             
-            // 验证录制文件大小和质量
-            $this->validateRecordingFile($tempFile, $videoFileId);
-            
-            // 检查录制文件
-            if (!file_exists($tempFile) || filesize($tempFile) === 0) {
-                throw new Exception('录制文件生成失败');
-            }
+            // 使用快速录制器的结果
+            $tempFile = $result['file_path'];
+            $fileSize = $result['file_size'];
+            $duration = $result['duration'];
             
             // 获取视频信息
             $videoInfo = $this->getVideoInfo($tempFile);
-            
-            // 检查时长限制
-            if ($videoInfo['duration'] > $this->config['max_duration']) {
-                $videoInfo['duration'] = $this->config['max_duration'];
-            }
             
             $this->updateRecordingProgress($videoFileId, 90, '上传到存储', 'recording');
             
@@ -126,15 +110,17 @@ class VideoProcessor {
             // 更新数据库
             $this->db->query(
                 "UPDATE video_files SET oss_key = ?, file_size = ?, duration = ?, resolution = ?, status = 'completed', recording_progress = 100, recording_status = 'completed', recording_completed_at = NOW() WHERE id = ?",
-                [$ossKey, filesize($tempFile), $videoInfo['duration'], $videoInfo['resolution'], $videoFileId]
+                [$ossKey, $fileSize, $duration, $videoInfo['resolution'], $videoFileId]
             );
             
             // 清理临时文件
-            unlink($tempFile);
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
             
             $this->updateRecordingProgress($videoFileId, 100, '录制完成', 'completed');
             
-            error_log("✅ 视频录制完成: {$videoFileId}, 时长: {$videoInfo['duration']}秒, 分辨率: {$videoInfo['resolution']}");
+            error_log("✅ 视频录制完成: {$videoFileId}, 时长: {$duration}秒, 分辨率: {$videoInfo['resolution']}");
             return true;
             
         } catch (Exception $e) {
