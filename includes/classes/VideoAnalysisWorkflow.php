@@ -45,7 +45,7 @@ class VideoAnalysisWorkflow {
             // 提交事务
             $pdo->commit();
             
-            // 异步启动录制任务
+            // 启动录制任务
             $this->startRecordingTasks($videoFiles);
             
             return [
@@ -484,6 +484,29 @@ class VideoAnalysisWorkflow {
     }
     
     /**
+     * 启动录制任务
+     */
+    private function startRecordingTasks($videoFiles) {
+        try {
+            $recorder = new VideoRecorder();
+            $duration = $this->config->get('recording_duration', 60);
+            
+            foreach ($videoFiles as $videoFile) {
+                if (!empty($videoFile['flv_url'])) {
+                    $result = $recorder->startRecording($videoFile['id'], $videoFile['flv_url'], $duration);
+                    if (!$result['success']) {
+                        error_log("启动录制失败 - 视频文件ID: {$videoFile['id']}, 错误: {$result['message']}");
+                    }
+                } else {
+                    error_log("FLV地址为空 - 视频文件ID: {$videoFile['id']}");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("启动录制任务失败: " . $e->getMessage());
+        }
+    }
+    
+    /**
      * 获取订单信息
      */
     private function getOrder($orderId) {
@@ -504,8 +527,8 @@ class VideoAnalysisWorkflow {
         $videoFiles[] = $this->createVideoFileRecord($orderId, 'self', 0, $order['self_flv_url']);
         
         // 同行视频
-        $competitorUrls = json_decode($order['competitor_flv_urls'], true);
-        if ($competitorUrls) {
+        $competitorUrls = json_decode($order['competitor_flv_urls'] ?? '[]', true);
+        if ($competitorUrls && is_array($competitorUrls)) {
             foreach ($competitorUrls as $index => $url) {
                 $videoFiles[] = $this->createVideoFileRecord($orderId, 'competitor', $index + 1, $url);
             }
