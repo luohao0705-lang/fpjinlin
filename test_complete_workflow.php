@@ -66,6 +66,7 @@ try {
     // 4. 测试工作流类
     echo "\n4. 测试工作流类...\n";
     try {
+        require_once 'includes/classes/VideoAnalysisWorkflow.php';
         $workflow = new VideoAnalysisWorkflow();
         echo "   ✅ VideoAnalysisWorkflow 类加载成功\n";
     } catch (Exception $e) {
