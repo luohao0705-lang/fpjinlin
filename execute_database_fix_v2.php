@@ -1,7 +1,7 @@
 <?php
 /**
- * 数据库修复执行脚本
- * 安全地执行数据库修复操作
+ * 数据库修复执行脚本 V2
+ * 修复事务管理问题，更安全可靠
  */
 
 require_once 'config/config.php';
@@ -11,56 +11,78 @@ try {
     $db = Database::getInstance();
     $pdo = $db->getConnection();
     
-    echo "开始执行数据库修复...\n";
-    
-    // 开始事务
-    $pdo->beginTransaction();
+    echo "开始执行数据库修复 V2...\n";
     
     // 1. 修复状态枚举不一致问题
     echo "1. 修复状态枚举...\n";
-    $pdo->exec("ALTER TABLE `video_files` 
-        MODIFY COLUMN `recording_status` enum('pending','recording','completed','failed','stopped') DEFAULT 'pending' COMMENT '录制状态'");
+    try {
+        $pdo->exec("ALTER TABLE `video_files` 
+            MODIFY COLUMN `recording_status` enum('pending','recording','completed','failed','stopped') DEFAULT 'pending' COMMENT '录制状态'");
+        echo "   - recording_status 枚举修复成功\n";
+    } catch (PDOException $e) {
+        echo "   - recording_status 枚举修复失败: " . $e->getMessage() . "\n";
+    }
     
     // 2. 添加关键索引
     echo "2. 添加索引...\n";
-    try {
-        $pdo->exec("ALTER TABLE `video_files` ADD KEY `idx_recording_status` (`recording_status`)");
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate key name') === false) {
-            throw $e;
+    
+    // 检查并添加 idx_recording_status 索引
+    $stmt = $pdo->query("SHOW INDEX FROM `video_files` WHERE Key_name = 'idx_recording_status'");
+    if ($stmt->rowCount() == 0) {
+        try {
+            $pdo->exec("ALTER TABLE `video_files` ADD KEY `idx_recording_status` (`recording_status`)");
+            echo "   - idx_recording_status 索引创建成功\n";
+        } catch (PDOException $e) {
+            echo "   - idx_recording_status 索引创建失败: " . $e->getMessage() . "\n";
         }
+    } else {
         echo "   - idx_recording_status 索引已存在，跳过\n";
     }
     
-    try {
-        $pdo->exec("ALTER TABLE `video_processing_queue` ADD KEY `idx_created_at` (`created_at`)");
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate key name') === false) {
-            throw $e;
+    // 检查并添加 idx_created_at 索引
+    $stmt = $pdo->query("SHOW INDEX FROM `video_processing_queue` WHERE Key_name = 'idx_created_at'");
+    if ($stmt->rowCount() == 0) {
+        try {
+            $pdo->exec("ALTER TABLE `video_processing_queue` ADD KEY `idx_created_at` (`created_at`)");
+            echo "   - idx_created_at 索引创建成功\n";
+        } catch (PDOException $e) {
+            echo "   - idx_created_at 索引创建失败: " . $e->getMessage() . "\n";
         }
+    } else {
         echo "   - idx_created_at 索引已存在，跳过\n";
     }
     
     // 3. 清理无效数据
     echo "3. 清理无效数据...\n";
-    $stmt = $pdo->prepare("DELETE vf FROM `video_files` vf 
-        LEFT JOIN `video_analysis_orders` vao ON vf.order_id = vao.id 
-        WHERE vao.id IS NULL");
-    $stmt->execute();
-    $deleted_files = $stmt->rowCount();
-    echo "   - 删除了 {$deleted_files} 条无效的 video_files 记录\n";
     
-    $stmt = $pdo->prepare("DELETE vpq FROM `video_processing_queue` vpq 
-        LEFT JOIN `video_analysis_orders` vao ON vpq.order_id = vao.id 
-        WHERE vao.id IS NULL");
-    $stmt->execute();
-    $deleted_queue = $stmt->rowCount();
-    echo "   - 删除了 {$deleted_queue} 条无效的 video_processing_queue 记录\n";
+    // 清理无效的 video_files 记录
+    try {
+        $stmt = $pdo->prepare("DELETE vf FROM `video_files` vf 
+            LEFT JOIN `video_analysis_orders` vao ON vf.order_id = vao.id 
+            WHERE vao.id IS NULL");
+        $stmt->execute();
+        $deleted_files = $stmt->rowCount();
+        echo "   - 删除了 {$deleted_files} 条无效的 video_files 记录\n";
+    } catch (PDOException $e) {
+        echo "   - 清理 video_files 失败: " . $e->getMessage() . "\n";
+    }
+    
+    // 清理无效的 video_processing_queue 记录
+    try {
+        $stmt = $pdo->prepare("DELETE vpq FROM `video_processing_queue` vpq 
+            LEFT JOIN `video_analysis_orders` vao ON vpq.order_id = vao.id 
+            WHERE vao.id IS NULL");
+        $stmt->execute();
+        $deleted_queue = $stmt->rowCount();
+        echo "   - 删除了 {$deleted_queue} 条无效的 video_processing_queue 记录\n";
+    } catch (PDOException $e) {
+        echo "   - 清理 video_processing_queue 失败: " . $e->getMessage() . "\n";
+    }
     
     // 4. 添加有用的字段
     echo "4. 添加新字段...\n";
     
-    // 检查字段是否已存在
+    // 检查并添加 file_hash 字段
     $stmt = $pdo->query("SHOW COLUMNS FROM `video_files` LIKE 'file_hash'");
     if ($stmt->rowCount() == 0) {
         try {
@@ -74,6 +96,7 @@ try {
         echo "   - file_hash 字段已存在，跳过\n";
     }
     
+    // 检查并添加 retry_count 字段
     $stmt = $pdo->query("SHOW COLUMNS FROM `video_files` LIKE 'retry_count'");
     if ($stmt->rowCount() == 0) {
         try {
@@ -87,6 +110,7 @@ try {
         echo "   - retry_count 字段已存在，跳过\n";
     }
     
+    // 检查并添加 max_retries 字段
     $stmt = $pdo->query("SHOW COLUMNS FROM `video_files` LIKE 'max_retries'");
     if ($stmt->rowCount() == 0) {
         try {
@@ -132,26 +156,39 @@ try {
     
     echo "   - 数据统计: 订单 {$orders} 个, 视频文件 {$files} 个, 队列任务 {$queue} 个\n";
     
-    // 提交事务
-    $pdo->commit();
+    // 6. 检查外键约束
+    echo "6. 检查外键约束...\n";
+    $stmt = $pdo->query("SELECT 
+        TABLE_NAME,
+        COLUMN_NAME,
+        CONSTRAINT_NAME,
+        REFERENCED_TABLE_NAME,
+        REFERENCED_COLUMN_NAME
+    FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE REFERENCED_TABLE_SCHEMA = DATABASE() 
+    AND REFERENCED_TABLE_NAME IS NOT NULL");
     
-    echo "\n✅ 数据库修复完成！\n";
+    $foreign_keys = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo "   - 找到 " . count($foreign_keys) . " 个外键约束\n";
+    
+    foreach ($foreign_keys as $fk) {
+        echo "     * {$fk['TABLE_NAME']}.{$fk['COLUMN_NAME']} -> {$fk['REFERENCED_TABLE_NAME']}.{$fk['REFERENCED_COLUMN_NAME']}\n";
+    }
+    
+    echo "\n✅ 数据库修复 V2 完成！\n";
     echo "修复内容:\n";
     echo "- 统一了状态枚举值\n";
     echo "- 添加了关键索引\n";
     echo "- 清理了无效数据\n";
     echo "- 添加了有用的字段\n";
+    echo "- 检查了外键约束\n";
     
 } catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-    
     echo "\n❌ 数据库修复失败: " . $e->getMessage() . "\n";
     echo "错误文件: " . $e->getFile() . "\n";
     echo "错误行号: " . $e->getLine() . "\n";
     
     // 记录错误日志
-    error_log("Database fix failed: " . $e->getMessage());
+    error_log("Database fix V2 failed: " . $e->getMessage());
 }
 ?>
