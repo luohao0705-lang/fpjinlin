@@ -91,18 +91,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log("开始处理启动分析请求 - 订单ID: {$orderId}");
         
         try {
-            error_log("加载VideoAnalysisOrder类...");
-            require_once '../includes/classes/VideoAnalysisOrder.php';
+            error_log("加载VideoAnalysisWorkflow类...");
+            require_once '../includes/classes/VideoAnalysisWorkflow.php';
             
-            error_log("创建VideoAnalysisOrder实例...");
-            $videoAnalysisOrder = new VideoAnalysisOrder();
+            error_log("创建VideoAnalysisWorkflow实例...");
+            $workflow = new VideoAnalysisWorkflow();
             
             error_log("调用startAnalysis方法...");
-            $result = $videoAnalysisOrder->startAnalysis($orderId);
-            $message = '分析已启动';
+            $result = $workflow->startAnalysis($orderId);
             
-            // 记录调试信息
-            error_log("启动分析成功 - 订单ID: {$orderId}, 结果: " . json_encode($result));
+            if ($result['success']) {
+                $message = '分析已启动，系统将自动处理录制、转码、AI分析、语音提取、话术分析和报告生成等步骤';
+                
+                // 记录调试信息
+                error_log("启动分析成功 - 订单ID: {$orderId}, 结果: " . json_encode($result));
+            } else {
+                $error = '启动分析失败：' . $result['message'];
+                error_log("启动分析失败 - 订单ID: {$orderId}, 错误: " . $result['message']);
+            }
         } catch (Exception $e) {
             $error = '启动分析失败：' . $e->getMessage() . 
                     ' | 文件：' . $e->getFile() . 
@@ -315,10 +321,20 @@ function getApiQuota($service) {
                                             <?php
                                             $statusMap = [
                                                 'pending' => '<span class="badge bg-secondary">待处理</span>',
-                                                'reviewing' => '<span class="badge bg-warning">审核中</span>',
-                                                'processing' => '<span class="badge bg-primary">处理中</span>',
+                                                'recording' => '<span class="badge bg-info">录制中</span>',
+                                                'recording_completed' => '<span class="badge bg-info">录制完成</span>',
+                                                'transcoding' => '<span class="badge bg-warning">转码中</span>',
+                                                'transcoding_completed' => '<span class="badge bg-warning">转码完成</span>',
+                                                'ai_analyzing' => '<span class="badge bg-primary">AI分析中</span>',
+                                                'ai_analysis_completed' => '<span class="badge bg-primary">AI分析完成</span>',
+                                                'speech_extracting' => '<span class="badge bg-success">语音提取中</span>',
+                                                'speech_extraction_completed' => '<span class="badge bg-success">语音提取完成</span>',
+                                                'script_analyzing' => '<span class="badge bg-dark">话术分析中</span>',
+                                                'script_analysis_completed' => '<span class="badge bg-dark">话术分析完成</span>',
+                                                'report_generating' => '<span class="badge bg-purple">报告生成中</span>',
                                                 'completed' => '<span class="badge bg-success">已完成</span>',
-                                                'failed' => '<span class="badge bg-danger">失败</span>'
+                                                'failed' => '<span class="badge bg-danger">失败</span>',
+                                                'stopped' => '<span class="badge bg-danger">已停止</span>'
                                             ];
                                             echo $statusMap[$order['status']] ?? '<span class="badge bg-secondary">未知</span>';
                                             ?>
