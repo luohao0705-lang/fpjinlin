@@ -128,6 +128,38 @@ class SimpleRecorder {
     }
     
     /**
+     * 获取视频详细信息
+     */
+    public function getVideoInfo($filePath) {
+        if (!file_exists($filePath)) {
+            return null;
+        }
+        
+        $command = "ffprobe -v quiet -print_format json -show_format -show_streams " . escapeshellarg($filePath);
+        $output = [];
+        exec($command, $output);
+        
+        $json = implode('', $output);
+        $data = json_decode($json, true);
+        
+        if (!$data || !isset($data['streams'][0])) {
+            return null;
+        }
+        
+        $stream = $data['streams'][0];
+        $format = $data['format'];
+        
+        return [
+            'width' => $stream['width'] ?? 0,
+            'height' => $stream['height'] ?? 0,
+            'duration' => intval($format['duration'] ?? 0),
+            'size' => intval($format['size'] ?? 0),
+            'bitrate' => intval($format['bit_rate'] ?? 0),
+            'codec' => $stream['codec_name'] ?? 'unknown'
+        ];
+    }
+    
+    /**
      * 保存结果到数据库
      */
     private function saveResult($orderId, $filePath, $fileSize, $duration) {
