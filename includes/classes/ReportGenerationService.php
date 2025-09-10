@@ -4,6 +4,8 @@
  * 负责生成最终的分析报告
  */
 
+require_once 'SystemConfig.php';
+
 class ReportGenerationService {
     private $db;
     private $config;

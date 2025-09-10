@@ -4,6 +4,8 @@
  * 负责调用阿里云大模型和DeepSeek进行视频和话术分析
  */
 
+require_once 'SystemConfig.php';
+
 class AIAnalysisService {
     private $db;
     private $config;

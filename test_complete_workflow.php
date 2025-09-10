@@ -6,6 +6,7 @@
 
 require_once 'config/config.php';
 require_once 'config/database.php';
+require_once 'includes/classes/SystemConfig.php';
 require_once 'includes/classes/VideoAnalysisWorkflow.php';
 
 // 启用错误报告

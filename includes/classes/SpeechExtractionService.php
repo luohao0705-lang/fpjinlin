@@ -4,6 +4,8 @@
  * 负责使用Whisper提取视频中的语音内容
  */
 
+require_once 'SystemConfig.php';
+
 class SpeechExtractionService {
     private $db;
     private $config;

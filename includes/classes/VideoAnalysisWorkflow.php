@@ -4,6 +4,8 @@
  * 负责管理整个视频分析流程
  */
 
+require_once 'SystemConfig.php';
+
 class VideoAnalysisWorkflow {
     private $db;
     private $config;

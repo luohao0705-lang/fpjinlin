@@ -1,73 +1,93 @@
 <?php
 /**
- * 简单测试脚本
+ * 简化测试脚本
+ * 用于测试基本功能
  */
 
-echo "🧪 简单测试脚本\n";
-echo "==============\n\n";
+// 启用错误报告
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// 1. 检查PHP配置
-echo "1. PHP配置检查:\n";
-echo "内存限制: " . ini_get('memory_limit') . "\n";
-echo "最大执行时间: " . ini_get('max_execution_time') . "\n";
-echo "最大输入时间: " . ini_get('max_input_time') . "\n";
+echo "=== 简化测试 ===\n\n";
 
-// 2. 检查系统工具
-echo "\n2. 系统工具检查:\n";
-$tools = ['wget', 'ffmpeg', 'ffprobe'];
-foreach ($tools as $tool) {
-    $output = [];
-    exec("which $tool 2>/dev/null", $output, $returnCode);
-    if ($returnCode === 0) {
-        echo "✅ $tool 可用\n";
-    } else {
-        echo "❌ $tool 不可用\n";
-    }
-}
-
-// 3. 检查文件权限
-echo "\n3. 文件权限检查:\n";
-$tempDir = sys_get_temp_dir();
-if (is_writable($tempDir)) {
-    echo "✅ 临时目录可写: $tempDir\n";
-} else {
-    echo "❌ 临时目录不可写: $tempDir\n";
-}
-
-// 4. 检查核心文件
-echo "\n4. 核心文件检查:\n";
-$coreFiles = [
-    'includes/classes/FastLightweightRecorder.php',
-    'includes/classes/VideoProcessor.php',
-    'includes/classes/VideoAnalysisOrder.php'
-];
-
-foreach ($coreFiles as $file) {
-    if (file_exists($file)) {
-        echo "✅ $file\n";
-    } else {
-        echo "❌ 缺少文件: $file\n";
-    }
-}
-
-// 5. 测试数据库连接
-echo "\n5. 数据库连接测试:\n";
 try {
-    if (file_exists('config/database.php')) {
-        require_once 'config/database.php';
-        $db = new Database();
-        $result = $db->fetchOne("SELECT 1 as test");
-        if ($result) {
-            echo "✅ 数据库连接正常\n";
-        } else {
-            echo "❌ 数据库连接失败\n";
-        }
+    // 1. 测试基本配置加载
+    echo "1. 测试配置加载...\n";
+    require_once 'config/config.php';
+    require_once 'config/database.php';
+    echo "   ✅ 基本配置加载成功\n";
+    
+    // 2. 测试数据库连接
+    echo "\n2. 测试数据库连接...\n";
+    $db = Database::getInstance();
+    $pdo = $db->getConnection();
+    $stmt = $pdo->query("SELECT 1");
+    if ($stmt) {
+        echo "   ✅ 数据库连接成功\n";
     } else {
-        echo "❌ 缺少数据库配置文件\n";
+        echo "   ❌ 数据库连接失败\n";
+        exit(1);
     }
+    
+    // 3. 测试SystemConfig类
+    echo "\n3. 测试SystemConfig类...\n";
+    require_once 'includes/classes/SystemConfig.php';
+    $config = new SystemConfig();
+    echo "   ✅ SystemConfig类加载成功\n";
+    
+    // 4. 测试VideoAnalysisWorkflow类
+    echo "\n4. 测试VideoAnalysisWorkflow类...\n";
+    require_once 'includes/classes/VideoAnalysisWorkflow.php';
+    $workflow = new VideoAnalysisWorkflow();
+    echo "   ✅ VideoAnalysisWorkflow类加载成功\n";
+    
+    // 5. 测试其他服务类
+    echo "\n5. 测试其他服务类...\n";
+    require_once 'includes/classes/VideoRecorder.php';
+    $recorder = new VideoRecorder();
+    echo "   ✅ VideoRecorder类加载成功\n";
+    
+    require_once 'includes/classes/AIAnalysisService.php';
+    $aiService = new AIAnalysisService();
+    echo "   ✅ AIAnalysisService类加载成功\n";
+    
+    require_once 'includes/classes/SpeechExtractionService.php';
+    $speechService = new SpeechExtractionService();
+    echo "   ✅ SpeechExtractionService类加载成功\n";
+    
+    require_once 'includes/classes/ReportGenerationService.php';
+    $reportService = new ReportGenerationService();
+    echo "   ✅ ReportGenerationService类加载成功\n";
+    
+    // 6. 测试配置获取
+    echo "\n6. 测试配置获取...\n";
+    $deepseekKey = $config->get('deepseek_api_key');
+    if (!empty($deepseekKey)) {
+        echo "   ✅ DeepSeek API密钥已配置\n";
+    } else {
+        echo "   ⚠️  DeepSeek API密钥未配置\n";
+    }
+    
+    $qwenKey = $config->get('qwen_omni_api_key');
+    if (!empty($qwenKey)) {
+        echo "   ✅ Qwen-Omni API密钥已配置\n";
+    } else {
+        echo "   ⚠️  Qwen-Omni API密钥未配置\n";
+    }
+    
+    echo "\n=== 测试完成 ===\n";
+    echo "所有核心类都已成功加载！\n";
+    echo "现在可以运行完整的测试脚本了。\n";
+    
 } catch (Exception $e) {
-    echo "❌ 数据库连接错误: " . $e->getMessage() . "\n";
+    echo "❌ 测试失败: " . $e->getMessage() . "\n";
+    echo "错误文件: " . $e->getFile() . "\n";
+    echo "错误行号: " . $e->getLine() . "\n";
+    echo "错误堆栈:\n" . $e->getTraceAsString() . "\n";
+} catch (Error $e) {
+    echo "❌ 致命错误: " . $e->getMessage() . "\n";
+    echo "错误文件: " . $e->getFile() . "\n";
+    echo "错误行号: " . $e->getLine() . "\n";
+    echo "错误堆栈:\n" . $e->getTraceAsString() . "\n";
 }
-
-echo "\n🎉 测试完成！\n";
 ?>

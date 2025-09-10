@@ -4,6 +4,8 @@
  * 负责录制FLV直播流
  */
 
+require_once 'SystemConfig.php';
+
 class VideoRecorder {
     private $db;
     private $config;
