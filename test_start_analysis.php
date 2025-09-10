@@ -14,7 +14,8 @@ try {
     
     // 1. 创建一个测试订单
     echo "1. 创建测试订单...\n";
-    $testFlvUrl = "https://live.douyin.com/test?expire=" . (time() + 3600);
+    // 使用真实的抖音FLV地址
+    $realFlvUrl = 'http://pull-flv-l26.douyincdn.com/stage/stream-117942867085230219_or4.flv?arch_hrchy=w1&exp_hrchy=w1&expire=68ca7511&major_anchor_level=common&sign=8dedf99c273092e6389e3dbbad9ed1b2&t_id=037-20250910164505061DD0AF4B1E4DCD2B27-8zG4Wv&unique_id=stream-117942867085230219_139_flv_or4';
     
     $orderId = $db->insert(
         "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, self_flv_url, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
@@ -23,7 +24,7 @@ try {
             'VA' . date('YmdHis') . rand(1000, 9999),
             '测试分析订单',
             'https://live.douyin.com/test',
-            $testFlvUrl,
+            $realFlvUrl,
             50,
             'reviewing'
         ]
@@ -40,7 +41,7 @@ try {
             'self',
             0,
             'https://live.douyin.com/test',
-            $testFlvUrl,
+            $realFlvUrl,
             'pending',
             'pending'
         ]
