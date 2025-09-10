@@ -32,9 +32,9 @@ class VideoAnalysisOrder {
             // 生成订单号
             $orderNo = 'VA' . date('YmdHis') . rand(1000, 9999);
             
-            // 创建订单 - 初始状态为reviewing，等待管理员配置FLV地址
+            // 创建订单 - 初始状态为pending，等待管理员配置FLV地址
             $orderId = $this->db->insert(
-                "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, competitor_video_links, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'reviewing', NOW())",
+                "INSERT INTO video_analysis_orders (user_id, order_no, title, self_video_link, competitor_video_links, cost_coins, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())",
                 [
                     $userId, 
                     $orderNo, 
@@ -95,7 +95,7 @@ class VideoAnalysisOrder {
         try {
             // 更新订单状态
             $this->db->query(
-                "UPDATE video_analysis_orders SET status = 'reviewing', self_flv_url = ?, competitor_flv_urls = ?, reviewed_at = NOW() WHERE id = ?",
+                "UPDATE video_analysis_orders SET status = 'pending', self_flv_url = ?, competitor_flv_urls = ?, reviewed_at = NOW() WHERE id = ?",
                 [$selfFlvUrl, json_encode($competitorFlvUrls, JSON_UNESCAPED_UNICODE), $orderId]
             );
             
@@ -289,10 +289,21 @@ class VideoAnalysisOrder {
             );
             
             $stats['pending'] = 0;
-            $stats['reviewing'] = 0;
+            $stats['recording'] = 0;
+            $stats['recording_completed'] = 0;
+            $stats['transcoding'] = 0;
+            $stats['transcoding_completed'] = 0;
+            $stats['ai_analyzing'] = 0;
+            $stats['ai_analysis_completed'] = 0;
+            $stats['speech_extracting'] = 0;
+            $stats['speech_extraction_completed'] = 0;
+            $stats['script_analyzing'] = 0;
+            $stats['script_analysis_completed'] = 0;
+            $stats['report_generating'] = 0;
             $stats['processing'] = 0;
             $stats['completed'] = 0;
             $stats['failed'] = 0;
+            $stats['stopped'] = 0;
             
             foreach ($statusStats as $stat) {
                 $stats[$stat['status']] = $stat['count'];
@@ -305,10 +316,21 @@ class VideoAnalysisOrder {
             return [
                 'total' => 0,
                 'pending' => 0,
-                'reviewing' => 0,
+                'recording' => 0,
+                'recording_completed' => 0,
+                'transcoding' => 0,
+                'transcoding_completed' => 0,
+                'ai_analyzing' => 0,
+                'ai_analysis_completed' => 0,
+                'speech_extracting' => 0,
+                'speech_extraction_completed' => 0,
+                'script_analyzing' => 0,
+                'script_analysis_completed' => 0,
+                'report_generating' => 0,
                 'processing' => 0,
                 'completed' => 0,
-                'failed' => 0
+                'failed' => 0,
+                'stopped' => 0
             ];
         }
     }
