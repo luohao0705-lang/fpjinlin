@@ -278,9 +278,17 @@ function getApiQuota($service) {
                 <div class="pt-3 pb-2 mb-3 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
                         <h1 class="h2">视频分析订单详情</h1>
-                        <a href="video_orders.php" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>返回列表
-                        </a>
+                        <div class="btn-group">
+                            <a href="video_orders.php" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>返回列表
+                            </a>
+                            <a href="recording_control.php?order_id=<?php echo $orderId; ?>" class="btn btn-primary" target="_blank">
+                                <i class="fas fa-video me-1"></i>实时录制控制
+                            </a>
+                            <a href="api/recording_display.php?order_id=<?php echo $orderId; ?>" class="btn btn-info" target="_blank">
+                                <i class="fas fa-eye me-1"></i>录制监控
+                            </a>
+                        </div>
                     </div>
                 </div>
 
