@@ -2,96 +2,77 @@
 /**
  * 测试启动分析功能
  */
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
 
-// 捕获所有错误
-set_error_handler(function($severity, $message, $file, $line) {
-    echo "<div style='color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border: 1px solid red;'>";
-    echo "<strong>PHP错误:</strong> {$message}<br>";
-    echo "<strong>文件:</strong> {$file}<br>";
-    echo "<strong>行号:</strong> {$line}<br>";
-    echo "</div>";
-    return true;
-});
-
-// 捕获致命错误
-register_shutdown_function(function() {
-    $error = error_get_last();
-    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-        echo "<div style='color: red; background: #ffe6e6; padding: 10px; margin: 10px 0; border: 1px solid red;'>";
-        echo "<strong>致命错误:</strong> {$error['message']}<br>";
-        echo "<strong>文件:</strong> {$error['file']}<br>";
-        echo "<strong>行号:</strong> {$error['line']}<br>";
-        echo "</div>";
-    }
-});
-
-require_once 'config/config.php';
 require_once 'config/database.php';
+require_once 'includes/classes/VideoAnalysisOrder.php';
 
-// 启动session
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// 设置admin_id用于测试
-$_SESSION['admin_id'] = 1;
-
-$orderId = intval($_GET['order_id'] ?? 24);
-
-echo "<h2>测试启动分析功能 - 订单ID: {$orderId}</h2>";
+echo "🧪 测试启动分析功能\n";
+echo "==================\n\n";
 
 try {
-    echo "<h3>1. 检查订单是否存在</h3>";
     $db = new Database();
-    $order = $db->fetchOne("SELECT * FROM video_analysis_orders WHERE id = ?", [$orderId]);
-    if (!$order) {
-        throw new Exception("订单不存在");
-    }
-    echo "✅ 订单存在: " . $order['title'] . "<br>";
     
-    echo "<h3>2. 检查视频文件</h3>";
-    $videoFiles = $db->fetchAll("SELECT * FROM video_files WHERE order_id = ?", [$orderId]);
-    echo "✅ 视频文件数量: " . count($videoFiles) . "<br>";
+    // 1. 创建一个测试订单
+    echo "1. 创建测试订单...\n";
+    $testFlvUrl = "https://live.douyin.com/test?expire=" . (time() + 3600);
     
-    echo "<h3>3. 检查处理任务</h3>";
-    $tasks = $db->fetchAll("SELECT * FROM video_processing_queue WHERE order_id = ?", [$orderId]);
-    echo "✅ 处理任务数量: " . count($tasks) . "<br>";
+    $orderId = $db->insert('video_analysis_orders', [
+        'user_id' => 1,
+        'live_url' => 'https://live.douyin.com/test',
+        'flv_url' => $testFlvUrl,
+        'status' => 'reviewing',
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
     
-    echo "<h3>4. 测试VideoAnalysisOrder类</h3>";
-    require_once 'includes/classes/VideoAnalysisOrder.php';
+    echo "✅ 创建测试订单: ID $orderId\n";
+    
+    // 2. 创建视频文件记录
+    echo "2. 创建视频文件记录...\n";
+    $videoFileId = $db->insert('video_files', [
+        'order_id' => $orderId,
+        'flv_url' => $testFlvUrl,
+        'status' => 'pending',
+        'recording_status' => 'pending',
+        'created_at' => date('Y-m-d H:i:s')
+    ]);
+    
+    echo "✅ 创建视频文件记录: ID $videoFileId\n";
+    
+    // 3. 测试启动分析
+    echo "3. 测试启动分析...\n";
     $videoAnalysisOrder = new VideoAnalysisOrder();
-    echo "✅ VideoAnalysisOrder类加载成功<br>";
     
-    echo "<h3>5. 测试startAnalysis方法</h3>";
+    // 模拟启动分析
     $result = $videoAnalysisOrder->startAnalysis($orderId);
-    echo "✅ startAnalysis执行成功<br>";
-    echo "结果: " . json_encode($result) . "<br>";
     
-    echo "<h3>6. 检查任务状态变化</h3>";
-    $tasksAfter = $db->fetchAll("SELECT * FROM video_processing_queue WHERE order_id = ? ORDER BY priority DESC", [$orderId]);
-    echo "任务状态变化:<br>";
-    foreach ($tasksAfter as $task) {
-        echo "- {$task['task_type']}: {$task['status']}<br>";
+    if ($result) {
+        echo "✅ 启动分析成功\n";
+    } else {
+        echo "❌ 启动分析失败\n";
     }
     
-    echo "<h3>✅ 测试完成，没有发现错误</h3>";
+    // 4. 检查任务是否创建
+    echo "4. 检查任务创建情况...\n";
+    $tasks = $db->fetchAll("SELECT task_type, status, error_message FROM video_processing_queue WHERE order_id = ?", [$orderId]);
+    
+    if (empty($tasks)) {
+        echo "❌ 没有创建任何任务\n";
+    } else {
+        echo "✅ 创建了 " . count($tasks) . " 个任务:\n";
+        foreach ($tasks as $task) {
+            echo "  - 类型: {$task['task_type']}, 状态: {$task['status']}, 错误: " . ($task['error_message'] ?: '无') . "\n";
+        }
+    }
+    
+    // 5. 清理测试数据
+    echo "5. 清理测试数据...\n";
+    $db->query("DELETE FROM video_processing_queue WHERE order_id = ?", [$orderId]);
+    $db->query("DELETE FROM video_files WHERE order_id = ?", [$orderId]);
+    $db->query("DELETE FROM video_analysis_orders WHERE id = ?", [$orderId]);
+    echo "✅ 测试数据已清理\n";
     
 } catch (Exception $e) {
-    echo "<h3>❌ 发现错误</h3>";
-    echo "<strong>错误类型:</strong> Exception<br>";
-    echo "<strong>错误信息:</strong> " . $e->getMessage() . "<br>";
-    echo "<strong>文件:</strong> " . $e->getFile() . "<br>";
-    echo "<strong>行号:</strong> " . $e->getLine() . "<br>";
-    echo "<strong>堆栈跟踪:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
-} catch (Error $e) {
-    echo "<h3>❌ 发现致命错误</h3>";
-    echo "<strong>错误类型:</strong> Fatal Error<br>";
-    echo "<strong>错误信息:</strong> " . $e->getMessage() . "<br>";
-    echo "<strong>文件:</strong> " . $e->getFile() . "<br>";
-    echo "<strong>行号:</strong> " . $e->getLine() . "<br>";
-    echo "<strong>堆栈跟踪:</strong><br><pre>" . $e->getTraceAsString() . "</pre>";
+    echo "❌ 错误: " . $e->getMessage() . "\n";
+    echo "堆栈跟踪:\n" . $e->getTraceAsString() . "\n";
 }
 ?>
