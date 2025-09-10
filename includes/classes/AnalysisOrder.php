@@ -376,6 +376,55 @@ class AnalysisOrder {
     }
     
     /**
+     * 保存订单（新增或更新）
+     */
+    public function save() {
+        if (empty($this->id)) {
+            // 插入新记录
+            $sql = "INSERT INTO analysis_orders (user_id, order_no, title, cost_coins, status, live_screenshots, cover_image, self_script, competitor_scripts, ai_report, report_score, report_level, error_message, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $this->db->getConnection()->prepare($sql);
+            $stmt->execute([
+                $this->user_id,
+                $this->order_no,
+                $this->title,
+                $this->cost_coins,
+                $this->status,
+                $this->live_screenshots ? json_encode($this->live_screenshots) : null,
+                $this->cover_image,
+                $this->self_script,
+                $this->competitor_scripts ? json_encode($this->competitor_scripts) : null,
+                $this->ai_report,
+                $this->report_score,
+                $this->report_level,
+                $this->error_message,
+                $this->completed_at
+            ]);
+            $this->id = $this->db->getConnection()->lastInsertId();
+        } else {
+            // 更新记录
+            $sql = "UPDATE analysis_orders SET user_id=?, order_no=?, title=?, cost_coins=?, status=?, live_screenshots=?, cover_image=?, self_script=?, competitor_scripts=?, ai_report=?, report_score=?, report_level=?, error_message=?, completed_at=? WHERE id=?";
+            $stmt = $this->db->getConnection()->prepare($sql);
+            $stmt->execute([
+                $this->user_id,
+                $this->order_no,
+                $this->title,
+                $this->cost_coins,
+                $this->status,
+                $this->live_screenshots ? json_encode($this->live_screenshots) : null,
+                $this->cover_image,
+                $this->self_script,
+                $this->competitor_scripts ? json_encode($this->competitor_scripts) : null,
+                $this->ai_report,
+                $this->report_score,
+                $this->report_level,
+                $this->error_message,
+                $this->completed_at,
+                $this->id
+            ]);
+        }
+    }
+
+    /**
      * 更新订单状态
      */
     public function updateOrderStatus($orderId, $status, $report = null, $score = null, $level = null, $errorMessage = null) {
